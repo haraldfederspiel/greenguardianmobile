@@ -7,16 +7,19 @@ import Logo from '../components/Logo';
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [productInfo, setProductInfo] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
+        // Reset product info when a new image is uploaded
+        setProductInfo(null);
       };
       reader.readAsDataURL(file);
     }
@@ -35,6 +38,7 @@ const CameraPage: React.FC = () => {
 
   const clearImage = () => {
     setCapturedImage(null);
+    setProductInfo(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -43,16 +47,44 @@ const CameraPage: React.FC = () => {
     }
   };
 
-  const analyzeProduct = () => {
+  const analyzeProduct = async () => {
+    if (!capturedImage) return;
+    
     setIsProcessing(true);
     
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      // Call the Supabase Edge Function to analyze the image with Groq API
+      const response = await fetch('/api/analyze-product', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          image: capturedImage 
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to analyze image');
+      }
+      
+      const data = await response.json();
+      setProductInfo(data.result);
+      
       toast({
         title: "Product analyzed",
-        description: "Results ready. View alternatives for more sustainable options.",
+        description: "OCR processing complete. View product information below.",
       });
-    }, 2500);
+    } catch (error) {
+      console.error('Error analyzing product:', error);
+      toast({
+        title: "Analysis failed",
+        description: "There was an error analyzing the product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -96,6 +128,15 @@ const CameraPage: React.FC = () => {
             <p className="text-neutral-600 text-center mb-6">
               Take a photo of a product<br />to analyze its sustainability
             </p>
+          </div>
+        )}
+
+        {productInfo && (
+          <div className="mt-6 p-4 bg-green-50 rounded-xl w-full max-w-xs">
+            <h3 className="font-medium text-green-800 mb-2">Product Information</h3>
+            <div className="text-sm text-green-700 whitespace-pre-line">
+              {productInfo}
+            </div>
           </div>
         )}
 

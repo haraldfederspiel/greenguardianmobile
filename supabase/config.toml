@@ -1,1 +1,7 @@
-project_id = "txqilqqtrbmykqinwyea"
+
+project_id = "your-project-id"
+[api]
+enabled = true
+[functions]
+[functions.analyze-product]
+verify_jwt = false

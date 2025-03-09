@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.37.0";
@@ -70,7 +69,7 @@ serve(async (req) => {
     const formattedImage = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
     const { blob, contentType } = dataURItoBlob(formattedImage);
     
-    // Upload the image to Supabase Storage - changed bucket from 'product-images' to 'aiforgood'
+    // Upload the image to Supabase Storage
     console.log('Uploading image to Supabase Storage bucket: aiforgood...');
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('aiforgood')
@@ -92,8 +91,8 @@ serve(async (req) => {
     const imageUrl = publicURLData.publicUrl;
     console.log('Image uploaded successfully, public URL:', imageUrl);
     
-    // Send request to Groq with the image URL
-    console.log('Sending URL to Groq for analysis...');
+    // Send request to Groq with the image URL - simplified prompt to just extract ingredients
+    console.log('Sending URL to Groq for ingredient extraction...');
     
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -106,11 +105,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are an OCR specialist that reads text from product images and extracts key information about the product. Focus on ingredients, product name, brand, nutrition facts, and sustainability information. Present the information in a clear, concise format.'
+            content: 'You are an OCR specialist that reads text from product images and extracts ingredient lists. Return only the list of ingredients as an array of strings in this format: ["ingredient 1", "ingredient 2", "ingredient 3", ...]. Do not include any other information.'
           },
           {
             role: 'user',
-            content: `Please analyze this product image and extract all text information. Focus on the product name, ingredients list, and any sustainability claims or certifications. The image URL is: ${imageUrl}`
+            content: `Please analyze this product image and extract only the list of ingredients. The image URL is: ${imageUrl}`
           }
         ],
         max_tokens: 1024,
@@ -131,9 +130,30 @@ serve(async (req) => {
     }
     
     const result = data.choices[0].message.content;
-    console.log('Analysis completed successfully');
+    console.log('Ingredient extraction completed:', result);
 
-    return new Response(JSON.stringify({ result }), {
+    // Try to parse the result as a JSON array of ingredients
+    let ingredients = [];
+    try {
+      // If result is already a JSON array string
+      if (result.trim().startsWith('[') && result.trim().endsWith(']')) {
+        ingredients = JSON.parse(result);
+      } else {
+        // Otherwise, try to extract ingredients from text format
+        // This handles cases where the model might return a formatted text instead of JSON
+        const lines = result.split('\n').filter(line => line.trim() !== '');
+        ingredients = lines.map(line => {
+          // Remove list markers like "1. ", "- ", "*" etc.
+          return line.replace(/^(\d+\.|\*|-|\•)\s+/g, '').trim();
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing ingredients:', error);
+      // Fallback: return the raw text if parsing fails
+      ingredients = [result];
+    }
+
+    return new Response(JSON.stringify({ ingredients }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

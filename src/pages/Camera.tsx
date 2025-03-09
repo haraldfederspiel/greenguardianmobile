@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -7,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [productInfo, setProductInfo] = useState<string | null>(null);
+  const [ingredients, setIngredients] = useState<string[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -18,7 +19,7 @@ const CameraPage: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
-        setProductInfo(null);
+        setIngredients(null);
       };
       reader.readAsDataURL(file);
     }
@@ -37,7 +38,7 @@ const CameraPage: React.FC = () => {
 
   const clearImage = () => {
     setCapturedImage(null);
-    setProductInfo(null);
+    setIngredients(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -61,16 +62,16 @@ const CameraPage: React.FC = () => {
         throw new Error('Failed to analyze image');
       }
       
-      if (!data || !data.result) {
+      if (!data || !data.ingredients) {
         console.error('Invalid response format:', data);
         throw new Error('Invalid response from analysis service');
       }
       
-      setProductInfo(data.result);
+      setIngredients(data.ingredients);
       
       toast({
-        title: "Product analyzed",
-        description: "OCR processing complete. View product information below.",
+        title: "Ingredients extracted",
+        description: "Successfully extracted ingredients from the product image.",
       });
     } catch (error) {
       console.error('Error analyzing product:', error);
@@ -123,16 +124,20 @@ const CameraPage: React.FC = () => {
               <Camera size={36} className="text-neutral-500" />
             </div>
             <p className="text-neutral-600 text-center mb-6">
-              Take a photo of a product<br />to analyze its sustainability
+              Take a photo of a product<br />to analyze its ingredients
             </p>
           </div>
         )}
 
-        {productInfo && (
+        {ingredients && ingredients.length > 0 && (
           <div className="mt-6 p-4 bg-green-50 rounded-xl w-full max-w-xs">
-            <h3 className="font-medium text-green-800 mb-2">Product Information</h3>
-            <div className="text-sm text-green-700 whitespace-pre-line">
-              {productInfo}
+            <h3 className="font-medium text-green-800 mb-2">Ingredients List</h3>
+            <div className="text-sm text-green-700">
+              <ul className="list-disc pl-5 space-y-1">
+                {ingredients.map((ingredient, index) => (
+                  <li key={index}>{ingredient}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
@@ -150,7 +155,7 @@ const CameraPage: React.FC = () => {
                   Analyzing...
                 </>
               ) : (
-                "Analyze Product"
+                "Extract Ingredients"
               )}
             </button>
           ) : (

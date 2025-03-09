@@ -26,7 +26,12 @@ const CameraPage: React.FC = () => {
   };
 
   const triggerCameraCapture = () => {
-    cameraInputRef.current?.click();
+    // On mobile devices, this should open the camera directly
+    if (cameraInputRef.current) {
+      // Reset the input first to ensure the change event fires even if the user selects the same file
+      cameraInputRef.current.value = '';
+      cameraInputRef.current.click();
+    }
   };
 
   const clearImage = () => {

@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import Logo from '../components/Logo';
 
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -56,8 +57,11 @@ const CameraPage: React.FC = () => {
 
   return (
     <div className="animate-fade-in flex flex-col h-full">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold">Analyze Product</h1>
+      <header className="mb-6 flex flex-col items-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Logo size={28} />
+          <h1 className="text-2xl font-bold">Analyze Product</h1>
+        </div>
         <p className="text-neutral-500">Take a photo or upload an image</p>
       </header>
 

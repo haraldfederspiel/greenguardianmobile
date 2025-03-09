@@ -33,6 +33,45 @@ const dataURItoBlob = (dataURI: string) => {
   };
 };
 
+// Helper function to extract ingredients from various formats
+const parseIngredientsFromResponse = (result: string): string[] => {
+  // Clean up the string to handle various formats
+  const cleanResult = result.trim();
+  let ingredients: string[] = [];
+
+  // Check if there's a JSON array in the response
+  const jsonMatch = cleanResult.match(/\[.*\]/s);
+  if (jsonMatch) {
+    try {
+      // Try to parse as JSON
+      const parsedIngredients = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsedIngredients)) {
+        return parsedIngredients.map(i => i.trim());
+      }
+    } catch (e) {
+      console.log("JSON parsing failed, will try other methods:", e);
+    }
+  }
+
+  // If no valid JSON found, try other methods
+  if (cleanResult.includes("ingredient")) {
+    // Split by lines and filter out non-ingredient lines
+    const lines = cleanResult.split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.toLowerCase().includes("here is") && !line.toLowerCase().includes("ingredient list"));
+    
+    // Remove numbering, bullets or other list markers
+    ingredients = lines.map(line => {
+      return line.replace(/^(\d+\.|\*|-|\•|\–)\s+/g, '').trim();
+    });
+  } else {
+    // Just split by commas or line breaks if no clear structure
+    ingredients = cleanResult.split(/[,\n]/).map(i => i.trim()).filter(i => i);
+  }
+
+  return ingredients;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -102,7 +141,7 @@ serve(async (req) => {
     const imageUrl = publicURLData.publicUrl;
     console.log('Image uploaded successfully, public URL:', imageUrl);
     
-    // Send request to Groq with the image URL - simplified prompt to just extract ingredients
+    // Send request to Groq with the image URL
     console.log('Sending URL to Groq for ingredient extraction...');
     
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -116,7 +155,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are an OCR specialist that reads text from product images and extracts ingredient lists. Return only the list of ingredients as an array of strings in this format: ["ingredient 1", "ingredient 2", "ingredient 3", ...]. Do not include any other information.'
+            content: 'You are an OCR specialist that reads text from product images and extracts ingredient lists. Return only the list of ingredients as a JSON array of strings in this format: ["ingredient 1", "ingredient 2", "ingredient 3"]. Do not include any explanatory text, just the array.'
           },
           {
             role: 'user',
@@ -141,27 +180,14 @@ serve(async (req) => {
     }
     
     const result = data.choices[0].message.content;
-    console.log('Ingredient extraction completed:', result);
+    console.log('Ingredient extraction result:', result);
 
-    // Try to parse the result as a JSON array of ingredients
-    let ingredients = [];
-    try {
-      // If result is already a JSON array string
-      if (result.trim().startsWith('[') && result.trim().endsWith(']')) {
-        ingredients = JSON.parse(result);
-      } else {
-        // Otherwise, try to extract ingredients from text format
-        // This handles cases where the model might return a formatted text instead of JSON
-        const lines = result.split('\n').filter(line => line.trim() !== '');
-        ingredients = lines.map(line => {
-          // Remove list markers like "1. ", "- ", "*" etc.
-          return line.replace(/^(\d+\.|\*|-|\•)\s+/g, '').trim();
-        });
-      }
-    } catch (error) {
-      console.error('Error parsing ingredients:', error);
-      // Fallback: return the raw text if parsing fails
-      ingredients = [result];
+    // Parse ingredients using our helper function
+    const ingredients = parseIngredientsFromResponse(result);
+    console.log('Parsed ingredients:', ingredients);
+    
+    if (ingredients.length === 0) {
+      console.warn('No ingredients could be extracted from the response');
     }
 
     // Now, query the "Ingredient list and score" table for each ingredient
@@ -172,6 +198,13 @@ serve(async (req) => {
     const ingredientScores = [];
     
     for (const ingredient of ingredients) {
+      // Skip empty ingredients or those that are likely not actual ingredients
+      if (!ingredient || ingredient.length < 2 || 
+          ingredient.toLowerCase().includes('ingredient') || 
+          ingredient.toLowerCase().includes('list')) {
+        continue;
+      }
+      
       // Use SQL LIKE query to find approximate matches, case insensitive
       const { data: scoreData, error: scoreError } = await supabase
         .from('Ingredient list and score')

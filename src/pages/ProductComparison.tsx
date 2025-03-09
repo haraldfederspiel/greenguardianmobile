@@ -9,8 +9,8 @@ import { useToast } from '@/components/ui/use-toast';
 import SustainableAlternative from '../components/SustainableAlternative';
 import ComparisonMetric from '../components/ComparisonMetric';
 
-// Sample data with updated image URLs
-const originalProduct: Product = {
+// Default sample data as fallback
+const defaultOriginalProduct: Product = {
   id: '1',
   name: 'Standard Water Bottle',
   brand: 'AquaBasic',
@@ -20,7 +20,7 @@ const originalProduct: Product = {
   category: 'Drinkware'
 };
 
-const alternativeProducts: Product[] = [
+const defaultAlternativeProducts: Product[] = [
   {
     id: '1a',
     name: 'Eco-friendly Water Bottle',
@@ -41,6 +41,19 @@ const alternativeProducts: Product[] = [
   }
 ];
 
+// Image placeholder for products without images
+const getImagePlaceholder = (category: string) => {
+  const placeholders: Record<string, string> = {
+    'Drinkware': 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGxhc3RpYyUyMHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
+    'Food': 'https://images.unsplash.com/photo-1506617564039-2f3b650b7010?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8Z3JvY2VyaWVzfGVufDB8fDB8fHww',
+    'Cleaning': 'https://images.unsplash.com/photo-1563453392212-326f5e854473?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8Y2xlYW5pbmclMjBwcm9kdWN0c3xlbnwwfHwwfHx8MA%3D%3D',
+    'Cosmetics': 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8Y29zbWV0aWNzfGVufDB8fDB8fHww',
+    default: 'https://images.unsplash.com/photo-1580428456289-31892e500545?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+  };
+  
+  return placeholders[category] || placeholders.default;
+};
+
 interface ComparisonMetricType {
   name: string;
   icon: LucideIcon;
@@ -49,14 +62,26 @@ interface ComparisonMetricType {
   label: string;
 }
 
+interface ComparisonData {
+  original: Product;
+  alternatives: Product[];
+  comparison: {
+    carbonFootprint: { original: number; alternative: number; };
+    waterUsage: { original: number; alternative: number; };
+    energyEfficiency: { original: number; alternative: number; };
+    recyclability: { original: number; alternative: number; };
+  };
+}
+
 const ProductComparison: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [product] = useState<Product>(originalProduct);
-  const [alternatives] = useState<Product[]>(alternativeProducts);
+  const [product, setProduct] = useState<Product>(defaultOriginalProduct);
+  const [alternatives, setAlternatives] = useState<Product[]>(defaultAlternativeProducts);
   const [selectedAlternative, setSelectedAlternative] = useState<Product | null>(null);
+  const [comparisonMetrics, setComparisonMetrics] = useState<ComparisonMetricType[]>([]);
   
   // Set the first alternative as default
   useEffect(() => {
@@ -65,37 +90,174 @@ const ProductComparison: React.FC = () => {
     }
   }, [alternatives, selectedAlternative]);
   
-  // Comparison metrics
-  const comparisonMetrics: ComparisonMetricType[] = [
-    {
-      name: 'Carbon Footprint',
-      icon: Leaf,
-      original: 40,
-      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 85 : 65) : 0,
-      label: 'kg CO2'
-    },
-    {
-      name: 'Water Usage',
-      icon: Droplet,
-      original: 45,
-      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 88 : 70) : 0,
-      label: 'liters'
-    },
-    {
-      name: 'Energy Efficiency',
-      icon: Zap,
-      original: 50,
-      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 90 : 75) : 0,
-      label: 'kWh'
-    },
-    {
-      name: 'Recyclability',
-      icon: Recycle,
-      original: 30,
-      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 95 : 80) : 0,
-      label: 'percentage'
+  // Load comparison data from localStorage
+  useEffect(() => {
+    const loadComparisonData = () => {
+      try {
+        const storedData = localStorage.getItem('productComparison');
+        if (storedData) {
+          const parsedData: ComparisonData = JSON.parse(storedData);
+          
+          // Process the original product
+          const originalProduct: Product = {
+            id: '1',
+            name: parsedData.original.name || defaultOriginalProduct.name,
+            brand: parsedData.original.brand || defaultOriginalProduct.brand,
+            price: parsedData.original.price || defaultOriginalProduct.price,
+            sustainabilityScore: parsedData.original.sustainabilityScore || defaultOriginalProduct.sustainabilityScore,
+            category: parsedData.original.category || defaultOriginalProduct.category,
+            image: parsedData.original.image || getImagePlaceholder(parsedData.original.category || 'default')
+          };
+          
+          // Process the alternative products
+          const alternativeProducts: Product[] = parsedData.alternatives.map((alt, index) => ({
+            id: `alt-${index}`,
+            name: alt.name || `Alternative ${index + 1}`,
+            brand: alt.brand || 'Eco Brand',
+            price: alt.price || '$0.00',
+            sustainabilityScore: alt.sustainabilityScore || 80,
+            category: alt.category || originalProduct.category,
+            image: alt.image || getImagePlaceholder(alt.category || 'default')
+          }));
+          
+          // Set up comparison metrics
+          const metrics: ComparisonMetricType[] = [
+            {
+              name: 'Carbon Footprint',
+              icon: Leaf,
+              original: parsedData.comparison.carbonFootprint.original,
+              alternative: parsedData.comparison.carbonFootprint.alternative,
+              label: 'percentage'
+            },
+            {
+              name: 'Water Usage',
+              icon: Droplet,
+              original: parsedData.comparison.waterUsage.original,
+              alternative: parsedData.comparison.waterUsage.alternative,
+              label: 'percentage'
+            },
+            {
+              name: 'Energy Efficiency',
+              icon: Zap,
+              original: parsedData.comparison.energyEfficiency.original,
+              alternative: parsedData.comparison.energyEfficiency.alternative,
+              label: 'percentage'
+            },
+            {
+              name: 'Recyclability',
+              icon: Recycle,
+              original: parsedData.comparison.recyclability.original,
+              alternative: parsedData.comparison.recyclability.alternative,
+              label: 'percentage'
+            }
+          ];
+          
+          // Update state with the parsed data
+          setProduct(originalProduct);
+          setAlternatives(alternativeProducts);
+          setComparisonMetrics(metrics);
+        } else {
+          // Set default comparison metrics if no stored data
+          setComparisonMetrics([
+            {
+              name: 'Carbon Footprint',
+              icon: Leaf,
+              original: 40,
+              alternative: 85,
+              label: 'percentage'
+            },
+            {
+              name: 'Water Usage',
+              icon: Droplet,
+              original: 45,
+              alternative: 88,
+              label: 'percentage'
+            },
+            {
+              name: 'Energy Efficiency',
+              icon: Zap,
+              original: 50,
+              alternative: 90,
+              label: 'percentage'
+            },
+            {
+              name: 'Recyclability',
+              icon: Recycle,
+              original: 30,
+              alternative: 95,
+              label: 'percentage'
+            }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error parsing comparison data:', error);
+        toast({
+          title: "Error loading comparison",
+          description: "Could not load product comparison data. Using default data instead.",
+          variant: "destructive",
+        });
+        
+        // Set default comparison metrics on error
+        setComparisonMetrics([
+          {
+            name: 'Carbon Footprint',
+            icon: Leaf,
+            original: 40,
+            alternative: 85,
+            label: 'percentage'
+          },
+          {
+            name: 'Water Usage',
+            icon: Droplet,
+            original: 45,
+            alternative: 88,
+            label: 'percentage'
+          },
+          {
+            name: 'Energy Efficiency',
+            icon: Zap,
+            original: 50,
+            alternative: 90,
+            label: 'percentage'
+          },
+          {
+            name: 'Recyclability',
+            icon: Recycle,
+            original: 30,
+            alternative: 95,
+            label: 'percentage'
+          }
+        ]);
+      }
+    };
+    
+    loadComparisonData();
+  }, [toast]);
+  
+  // Update comparison metrics when selected alternative changes
+  useEffect(() => {
+    if (selectedAlternative && comparisonMetrics.length > 0) {
+      // Create a deep copy of the metrics to avoid direct state mutation
+      const updatedMetrics = comparisonMetrics.map(metric => ({ ...metric }));
+      
+      // Update alternative values based on the selected alternative's score
+      updatedMetrics.forEach(metric => {
+        if (selectedAlternative.sustainabilityScore > 80) {
+          // For high sustainability score products, use the higher values
+          metric.alternative = metric.name === 'Recyclability' ? 95 : 
+                              metric.name === 'Energy Efficiency' ? 90 : 
+                              metric.name === 'Water Usage' ? 88 : 85;
+        } else {
+          // For medium sustainability score products, use medium values
+          metric.alternative = metric.name === 'Recyclability' ? 80 : 
+                              metric.name === 'Energy Efficiency' ? 75 : 
+                              metric.name === 'Water Usage' ? 70 : 65;
+        }
+      });
+      
+      setComparisonMetrics(updatedMetrics);
     }
-  ];
+  }, [selectedAlternative]);
   
   const handleChooseAlternative = () => {
     if (selectedAlternative) {
@@ -144,6 +306,11 @@ const ProductComparison: React.FC = () => {
               src={product.image} 
               alt={product.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = getImagePlaceholder('default');
+              }}
             />
           </div>
           <h4 className="font-medium text-sm truncate">{product.name}</h4>
@@ -167,6 +334,11 @@ const ProductComparison: React.FC = () => {
               src={selectedAlternative.image} 
               alt={selectedAlternative.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = getImagePlaceholder('default');
+              }}
             />
           </div>
           <h4 className="font-medium text-sm truncate">{selectedAlternative.name}</h4>

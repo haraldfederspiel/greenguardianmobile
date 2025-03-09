@@ -70,7 +70,7 @@ serve(async (req) => {
     const formattedImage = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
     const { blob, contentType } = dataURItoBlob(formattedImage);
     
-    // Upload the image to Supabase Storage - changed bucket from 'product-images' to 'aiforgood'
+    // Upload the image to Supabase Storage
     console.log('Uploading image to Supabase Storage bucket: aiforgood...');
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('aiforgood')
@@ -92,10 +92,10 @@ serve(async (req) => {
     const imageUrl = publicURLData.publicUrl;
     console.log('Image uploaded successfully, public URL:', imageUrl);
     
-    // Send request to Groq with the image URL
-    console.log('Sending URL to Groq for analysis...');
+    // First, analyze the product from the image
+    console.log('Sending URL to Groq for product analysis...');
     
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const analyzeResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GROQ_API_KEY}`,
@@ -117,23 +117,157 @@ serve(async (req) => {
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!analyzeResponse.ok) {
+      const errorData = await analyzeResponse.json();
       console.error('Groq API error response:', errorData);
-      throw new Error(`Groq API error: ${errorData.error?.message || `HTTP status ${response.status}`}`);
+      throw new Error(`Groq API error: ${errorData.error?.message || `HTTP status ${analyzeResponse.status}`}`);
     }
     
-    const data = await response.json();
+    const analyzeData = await analyzeResponse.json();
     
-    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Unexpected response format from Groq:', data);
+    if (!analyzeData || !analyzeData.choices || !analyzeData.choices[0] || !analyzeData.choices[0].message) {
+      console.error('Unexpected response format from Groq:', analyzeData);
       throw new Error('Invalid response format from Groq API');
     }
     
-    const result = data.choices[0].message.content;
-    console.log('Analysis completed successfully');
+    const productInfo = analyzeData.choices[0].message.content;
+    console.log('Product analysis completed successfully');
 
-    return new Response(JSON.stringify({ result }), {
+    // Now, use the product info to find sustainable alternatives
+    console.log('Finding sustainable alternatives...');
+    
+    const alternativesResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama3-70b-8192',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a sustainability expert who helps users find eco-friendly alternatives to products.
+            Given a product's information, identify 2-3 more sustainable alternatives that serve the same function.
+            Provide detailed information about each alternative including:
+            - Product name
+            - Brand
+            - Price (estimated)
+            - Sustainability score (on a scale of 0-100, where higher is better)
+            - Key sustainable features
+            
+            Also include sustainability metrics comparing the original product to the best alternative:
+            - Carbon Footprint (percentage improvement)
+            - Water Usage (percentage improvement)
+            - Energy Efficiency (percentage improvement)
+            - Recyclability (percentage improvement)
+            
+            Format your response as JSON with the following structure:
+            {
+              "original": {
+                "name": "Product Name",
+                "brand": "Brand Name",
+                "price": "$XX.XX",
+                "image": "URL or placeholder",
+                "sustainabilityScore": XX,
+                "category": "Category"
+              },
+              "alternatives": [
+                {
+                  "name": "Alternative Product Name",
+                  "brand": "Alternative Brand",
+                  "price": "$XX.XX",
+                  "sustainabilityScore": XX,
+                  "image": "URL or placeholder",
+                  "category": "Category"
+                },
+                ...
+              ],
+              "comparison": {
+                "carbonFootprint": {
+                  "original": XX,
+                  "alternative": XX
+                },
+                "waterUsage": {
+                  "original": XX,
+                  "alternative": XX
+                },
+                "energyEfficiency": {
+                  "original": XX,
+                  "alternative": XX
+                },
+                "recyclability": {
+                  "original": XX,
+                  "alternative": XX
+                }
+              }
+            }`
+          },
+          {
+            role: 'user',
+            content: `Based on this product information, please suggest more sustainable alternatives and provide comparison metrics:\n\n${productInfo}`
+          }
+        ],
+        max_tokens: 1536,
+      }),
+    });
+
+    if (!alternativesResponse.ok) {
+      const errorData = await alternativesResponse.json();
+      console.error('Groq API error response for alternatives:', errorData);
+      throw new Error(`Groq API error for alternatives: ${errorData.error?.message || `HTTP status ${alternativesResponse.status}`}`);
+    }
+    
+    const alternativesData = await alternativesResponse.json();
+    
+    if (!alternativesData || !alternativesData.choices || !alternativesData.choices[0] || !alternativesData.choices[0].message) {
+      console.error('Unexpected response format from Groq for alternatives:', alternativesData);
+      throw new Error('Invalid response format from Groq API for alternatives');
+    }
+    
+    const alternativesInfo = alternativesData.choices[0].message.content;
+    console.log('Alternatives analysis completed successfully');
+
+    // Try to parse the alternatives as JSON
+    let alternativesJson;
+    try {
+      alternativesJson = JSON.parse(alternativesInfo);
+    } catch (error) {
+      console.error('Error parsing alternatives JSON:', error);
+      console.log('Raw alternatives info:', alternativesInfo);
+      
+      // If JSON parsing fails, use a fallback structure
+      alternativesJson = {
+        original: {
+          name: "Standard Product",
+          brand: "Generic Brand",
+          price: "$10.99",
+          sustainabilityScore: 40,
+          category: "Unknown"
+        },
+        alternatives: [
+          {
+            name: "Eco-friendly Alternative",
+            brand: "Green Brand",
+            price: "$15.99",
+            sustainabilityScore: 85,
+            category: "Unknown"
+          }
+        ],
+        comparison: {
+          carbonFootprint: { original: 40, alternative: 85 },
+          waterUsage: { original: 45, alternative: 88 },
+          energyEfficiency: { original: 50, alternative: 90 },
+          recyclability: { original: 30, alternative: 95 }
+        }
+      };
+    }
+
+    // Return both product info and alternatives
+    return new Response(JSON.stringify({ 
+      result: productInfo,
+      alternatives: alternativesJson
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

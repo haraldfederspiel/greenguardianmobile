@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X, Copy, Share2, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,6 +19,7 @@ const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [productInfo, setProductInfo] = useState<string | null>(null);
+  const [alternatives, setAlternatives] = useState<any>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +33,7 @@ const CameraPage: React.FC = () => {
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
         setProductInfo(null);
+        setAlternatives(null);
       };
       reader.readAsDataURL(file);
     }
@@ -50,6 +53,7 @@ const CameraPage: React.FC = () => {
   const clearImage = () => {
     setCapturedImage(null);
     setProductInfo(null);
+    setAlternatives(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -123,6 +127,7 @@ const CameraPage: React.FC = () => {
       }
       
       setProductInfo(data.result);
+      setAlternatives(data.alternatives);
       setShowResultModal(true);
       
       toast({
@@ -142,7 +147,14 @@ const CameraPage: React.FC = () => {
   };
 
   const viewAlternatives = () => {
-    navigate('/compare/1');
+    if (alternatives) {
+      // Store alternatives in localStorage for the comparison page to access
+      localStorage.setItem('productComparison', JSON.stringify(alternatives));
+      navigate('/compare/1');
+    } else {
+      // If no alternatives were found, still navigate but with default data
+      navigate('/compare/1');
+    }
     setShowResultModal(false);
   };
 

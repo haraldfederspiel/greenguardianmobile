@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -26,7 +25,6 @@ const CameraPage: React.FC = () => {
   };
 
   const triggerCameraCapture = () => {
-    // This function should trigger the device camera on mobile
     if (cameraInputRef.current) {
       cameraInputRef.current.value = '';
       cameraInputRef.current.click();
@@ -46,14 +44,12 @@ const CameraPage: React.FC = () => {
   const analyzeProduct = () => {
     setIsProcessing(true);
     
-    // Simulate product analysis
     setTimeout(() => {
       setIsProcessing(false);
       toast({
         title: "Product analyzed",
         description: "Results ready. View alternatives for more sustainable options.",
       });
-      // In a real app, we would navigate to the comparison page with the analyzed product
     }, 2500);
   };
 
@@ -130,7 +126,6 @@ const CameraPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Hidden file inputs */}
       <input 
         type="file" 
         accept="image/*" 
@@ -139,11 +134,10 @@ const CameraPage: React.FC = () => {
         className="hidden" 
       />
       
-      {/* Camera input specifically for mobile devices */}
       <input 
         type="file" 
         accept="image/*" 
-        capture="environment" 
+        capture="user"
         ref={cameraInputRef} 
         onChange={handleFileUpload} 
         className="hidden" 

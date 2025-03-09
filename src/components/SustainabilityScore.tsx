@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface SustainabilityScoreProps {
-  score: number; // Score from 0-100
+  score: number | null; // Score from 0-100 or null
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
@@ -12,6 +12,32 @@ const SustainabilityScore: React.FC<SustainabilityScoreProps> = ({
   size = 'md', 
   showLabel = true 
 }) => {
+  // Check if score is null or NaN
+  if (score === null || isNaN(score)) {
+    return (
+      <div className="flex flex-col items-center">
+        <div className={`relative rounded-full flex items-center justify-center bg-neutral-100 ${
+          size === 'sm' ? 'w-10 h-10' : 
+          size === 'lg' ? 'w-20 h-20' : 
+          'w-14 h-14'
+        }`}>
+          <span className={`font-bold ${
+            size === 'sm' ? 'text-xs' : 
+            size === 'lg' ? 'text-xl' : 
+            'text-sm'
+          } text-neutral-400`}>
+            N/A
+          </span>
+        </div>
+        {showLabel && (
+          <span className="text-xs mt-1 text-neutral-500">
+            Not available
+          </span>
+        )}
+      </div>
+    );
+  }
+  
   // Determine the color based on score
   const getColor = () => {
     if (score >= 80) return 'bg-green-500';

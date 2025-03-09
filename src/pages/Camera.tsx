@@ -9,13 +9,7 @@ import SustainabilityScore from '@/components/SustainabilityScore';
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [ingredients, setIngredients] = useState<string[] | null>(null);
   const [sustainabilityScore, setSustainabilityScore] = useState<number | null>(null);
-  const [ingredientScores, setIngredientScores] = useState<Array<{
-    ingredient: string;
-    score: number | null;
-    matchedWith: string | null;
-  }> | null>(null);
   const [matchStats, setMatchStats] = useState<{
     matched: number;
     total: number;
@@ -31,9 +25,7 @@ const CameraPage: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
-        setIngredients(null);
         setSustainabilityScore(null);
-        setIngredientScores(null);
         setMatchStats(null);
       };
       reader.readAsDataURL(file);
@@ -53,9 +45,7 @@ const CameraPage: React.FC = () => {
 
   const clearImage = () => {
     setCapturedImage(null);
-    setIngredients(null);
     setSustainabilityScore(null);
-    setIngredientScores(null);
     setMatchStats(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -80,14 +70,12 @@ const CameraPage: React.FC = () => {
         throw new Error('Failed to analyze image');
       }
       
-      if (!data || !data.ingredients) {
+      if (!data) {
         console.error('Invalid response format:', data);
         throw new Error('Invalid response from analysis service');
       }
       
-      setIngredients(data.ingredients);
       setSustainabilityScore(data.averageScore);
-      setIngredientScores(data.ingredientScores);
       setMatchStats({
         matched: data.matchedIngredients,
         total: data.totalIngredients
@@ -96,8 +84,8 @@ const CameraPage: React.FC = () => {
       toast({
         title: "Analysis complete",
         description: data.averageScore !== null 
-          ? `Extracted ${data.ingredients.length} ingredients with an average sustainability score of ${data.averageScore}.` 
-          : `Extracted ${data.ingredients.length} ingredients, but no sustainability scores were found.`,
+          ? `Product analyzed with a sustainability score of ${data.averageScore}.` 
+          : `Product analyzed, but no sustainability score could be determined.`,
       });
     } catch (error) {
       console.error('Error analyzing product:', error);
@@ -150,7 +138,7 @@ const CameraPage: React.FC = () => {
               <Camera size={36} className="text-neutral-500" />
             </div>
             <p className="text-neutral-600 text-center mb-6">
-              Take a photo of a product<br />to analyze its ingredients
+              Take a photo of a product<br />to analyze its sustainability
             </p>
           </div>
         )}
@@ -167,33 +155,6 @@ const CameraPage: React.FC = () => {
           </div>
         )}
 
-        {ingredients && ingredients.length > 0 && (
-          <div className="mt-6 p-4 bg-green-50 rounded-xl w-full max-w-xs">
-            <h3 className="font-medium text-green-800 mb-2">Ingredients List</h3>
-            <div className="text-sm text-green-700">
-              <ul className="list-disc pl-5 space-y-1">
-                {ingredients.map((ingredient, index) => {
-                  const scoreInfo = ingredientScores?.find(s => s.ingredient === ingredient);
-                  return (
-                    <li key={index} className="flex items-start justify-between">
-                      <span>{ingredient}</span>
-                      {scoreInfo?.score !== null && scoreInfo?.score !== undefined && (
-                        <span className={`ml-2 font-medium ${
-                          scoreInfo.score >= 75 ? 'text-green-600' : 
-                          scoreInfo.score >= 50 ? 'text-yellow-600' : 
-                          'text-red-600'
-                        }`}>
-                          {scoreInfo.score}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-        )}
-
         <div className="mt-8 flex flex-col w-full max-w-xs space-y-4">
           {capturedImage ? (
             <button 
@@ -207,7 +168,7 @@ const CameraPage: React.FC = () => {
                   Analyzing...
                 </>
               ) : (
-                "Extract Ingredients"
+                "Analyze Product"
               )}
             </button>
           ) : (

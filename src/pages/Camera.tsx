@@ -112,6 +112,7 @@ const CameraPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
+      console.log('Sending image to analyze-product function...');
       const { data, error } = await supabase.functions.invoke('analyze-product', {
         body: { image: capturedImage },
       });
@@ -121,18 +122,29 @@ const CameraPage: React.FC = () => {
         throw new Error('Failed to analyze image');
       }
       
+      console.log('Received response from analyze-product:', data);
+      
       if (!data || !data.result) {
         console.error('Invalid response format:', data);
         throw new Error('Invalid response from analysis service');
       }
       
       setProductInfo(data.result);
-      setAlternatives(data.alternatives);
+      
+      if (data.alternatives) {
+        console.log('Setting alternatives data:', data.alternatives);
+        setAlternatives(data.alternatives);
+        // Store in localStorage immediately
+        localStorage.setItem('productComparison', JSON.stringify(data.alternatives));
+      } else {
+        console.warn('No alternatives data received from analysis');
+      }
+      
       setShowResultModal(true);
       
       toast({
         title: "Product analyzed",
-        description: "OCR processing complete. View product information in the modal.",
+        description: "Analysis complete. View product information and sustainable alternatives.",
       });
     } catch (error) {
       console.error('Error analyzing product:', error);
@@ -148,11 +160,14 @@ const CameraPage: React.FC = () => {
 
   const viewAlternatives = () => {
     if (alternatives) {
-      // Store alternatives in localStorage for the comparison page to access
-      localStorage.setItem('productComparison', JSON.stringify(alternatives));
+      // Already stored in localStorage during analysis
       navigate('/compare/1');
     } else {
-      // If no alternatives were found, still navigate but with default data
+      // If no alternatives were found, navigate with default data
+      toast({
+        description: "No sustainable alternatives were found for this product.",
+        variant: "destructive",
+      });
       navigate('/compare/1');
     }
     setShowResultModal(false);

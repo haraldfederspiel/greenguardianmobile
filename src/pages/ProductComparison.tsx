@@ -63,8 +63,22 @@ interface ComparisonMetricType {
 }
 
 interface ComparisonData {
-  original: Product;
-  alternatives: Product[];
+  original: {
+    name: string;
+    brand: string;
+    price: string;
+    image?: string;
+    sustainabilityScore: number;
+    category?: string;
+  };
+  alternatives: Array<{
+    name: string;
+    brand: string;
+    price: string;
+    image?: string;
+    sustainabilityScore: number;
+    category?: string;
+  }>;
   comparison: {
     carbonFootprint: { original: number; alternative: number; };
     waterUsage: { original: number; alternative: number; };
@@ -82,6 +96,7 @@ const ProductComparison: React.FC = () => {
   const [alternatives, setAlternatives] = useState<Product[]>(defaultAlternativeProducts);
   const [selectedAlternative, setSelectedAlternative] = useState<Product | null>(null);
   const [comparisonMetrics, setComparisonMetrics] = useState<ComparisonMetricType[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   // Set the first alternative as default
   useEffect(() => {
@@ -93,104 +108,93 @@ const ProductComparison: React.FC = () => {
   // Load comparison data from localStorage
   useEffect(() => {
     const loadComparisonData = () => {
+      setIsLoading(true);
       try {
         const storedData = localStorage.getItem('productComparison');
+        console.log('Raw stored data:', storedData);
+        
         if (storedData) {
-          const parsedData: ComparisonData = JSON.parse(storedData);
-          
-          // Process the original product
-          const originalProduct: Product = {
-            id: '1',
-            name: parsedData.original.name || defaultOriginalProduct.name,
-            brand: parsedData.original.brand || defaultOriginalProduct.brand,
-            price: parsedData.original.price || defaultOriginalProduct.price,
-            sustainabilityScore: parsedData.original.sustainabilityScore || defaultOriginalProduct.sustainabilityScore,
-            category: parsedData.original.category || defaultOriginalProduct.category,
-            image: parsedData.original.image || getImagePlaceholder(parsedData.original.category || 'default')
-          };
-          
-          // Process the alternative products
-          const alternativeProducts: Product[] = parsedData.alternatives.map((alt, index) => ({
-            id: `alt-${index}`,
-            name: alt.name || `Alternative ${index + 1}`,
-            brand: alt.brand || 'Eco Brand',
-            price: alt.price || '$0.00',
-            sustainabilityScore: alt.sustainabilityScore || 80,
-            category: alt.category || originalProduct.category,
-            image: alt.image || getImagePlaceholder(alt.category || 'default')
-          }));
-          
-          // Set up comparison metrics
-          const metrics: ComparisonMetricType[] = [
-            {
-              name: 'Carbon Footprint',
-              icon: Leaf,
-              original: parsedData.comparison.carbonFootprint.original,
-              alternative: parsedData.comparison.carbonFootprint.alternative,
-              label: 'percentage'
-            },
-            {
-              name: 'Water Usage',
-              icon: Droplet,
-              original: parsedData.comparison.waterUsage.original,
-              alternative: parsedData.comparison.waterUsage.alternative,
-              label: 'percentage'
-            },
-            {
-              name: 'Energy Efficiency',
-              icon: Zap,
-              original: parsedData.comparison.energyEfficiency.original,
-              alternative: parsedData.comparison.energyEfficiency.alternative,
-              label: 'percentage'
-            },
-            {
-              name: 'Recyclability',
-              icon: Recycle,
-              original: parsedData.comparison.recyclability.original,
-              alternative: parsedData.comparison.recyclability.alternative,
-              label: 'percentage'
-            }
-          ];
-          
-          // Update state with the parsed data
-          setProduct(originalProduct);
-          setAlternatives(alternativeProducts);
-          setComparisonMetrics(metrics);
+          try {
+            const parsedData: ComparisonData = JSON.parse(storedData);
+            console.log('Parsed comparison data:', parsedData);
+            
+            // Process the original product
+            const originalProduct: Product = {
+              id: '1',
+              name: parsedData.original.name || defaultOriginalProduct.name,
+              brand: parsedData.original.brand || defaultOriginalProduct.brand,
+              price: parsedData.original.price || defaultOriginalProduct.price,
+              sustainabilityScore: parsedData.original.sustainabilityScore || defaultOriginalProduct.sustainabilityScore,
+              category: parsedData.original.category || defaultOriginalProduct.category,
+              image: parsedData.original.image || getImagePlaceholder(parsedData.original.category || 'default')
+            };
+            
+            // Process the alternative products
+            const alternativeProducts: Product[] = parsedData.alternatives.map((alt, index) => ({
+              id: `alt-${index}`,
+              name: alt.name || `Alternative ${index + 1}`,
+              brand: alt.brand || 'Eco Brand',
+              price: alt.price || '$0.00',
+              sustainabilityScore: alt.sustainabilityScore || 80,
+              category: alt.category || originalProduct.category,
+              image: alt.image || getImagePlaceholder(alt.category || 'default')
+            }));
+            
+            // Set up comparison metrics
+            const metrics: ComparisonMetricType[] = [
+              {
+                name: 'Carbon Footprint',
+                icon: Leaf,
+                original: parsedData.comparison.carbonFootprint.original,
+                alternative: parsedData.comparison.carbonFootprint.alternative,
+                label: 'percentage'
+              },
+              {
+                name: 'Water Usage',
+                icon: Droplet,
+                original: parsedData.comparison.waterUsage.original,
+                alternative: parsedData.comparison.waterUsage.alternative,
+                label: 'percentage'
+              },
+              {
+                name: 'Energy Efficiency',
+                icon: Zap,
+                original: parsedData.comparison.energyEfficiency.original,
+                alternative: parsedData.comparison.energyEfficiency.alternative,
+                label: 'percentage'
+              },
+              {
+                name: 'Recyclability',
+                icon: Recycle,
+                original: parsedData.comparison.recyclability.original,
+                alternative: parsedData.comparison.recyclability.alternative,
+                label: 'percentage'
+              }
+            ];
+            
+            // Update state with the parsed data
+            setProduct(originalProduct);
+            setAlternatives(alternativeProducts);
+            setComparisonMetrics(metrics);
+            console.log('States updated with comparison data');
+          } catch (parseError) {
+            console.error('Error parsing JSON:', parseError);
+            console.log('Invalid JSON string:', storedData);
+            toast({
+              title: "Error parsing data",
+              description: "Invalid comparison data format.",
+              variant: "destructive",
+            });
+            // Use defaults
+            setDefaultMetrics();
+          }
         } else {
+          console.log('No stored data found, using defaults');
           // Set default comparison metrics if no stored data
-          setComparisonMetrics([
-            {
-              name: 'Carbon Footprint',
-              icon: Leaf,
-              original: 40,
-              alternative: 85,
-              label: 'percentage'
-            },
-            {
-              name: 'Water Usage',
-              icon: Droplet,
-              original: 45,
-              alternative: 88,
-              label: 'percentage'
-            },
-            {
-              name: 'Energy Efficiency',
-              icon: Zap,
-              original: 50,
-              alternative: 90,
-              label: 'percentage'
-            },
-            {
-              name: 'Recyclability',
-              icon: Recycle,
-              original: 30,
-              alternative: 95,
-              label: 'percentage'
-            }
-          ]);
+          setDefaultMetrics();
         }
       } catch (error) {
-        console.error('Error parsing comparison data:', error);
+        console.error('Error loading comparison data:', error);
         toast({
           title: "Error loading comparison",
           description: "Could not load product comparison data. Using default data instead.",
@@ -198,37 +202,43 @@ const ProductComparison: React.FC = () => {
         });
         
         // Set default comparison metrics on error
-        setComparisonMetrics([
-          {
-            name: 'Carbon Footprint',
-            icon: Leaf,
-            original: 40,
-            alternative: 85,
-            label: 'percentage'
-          },
-          {
-            name: 'Water Usage',
-            icon: Droplet,
-            original: 45,
-            alternative: 88,
-            label: 'percentage'
-          },
-          {
-            name: 'Energy Efficiency',
-            icon: Zap,
-            original: 50,
-            alternative: 90,
-            label: 'percentage'
-          },
-          {
-            name: 'Recyclability',
-            icon: Recycle,
-            original: 30,
-            alternative: 95,
-            label: 'percentage'
-          }
-        ]);
+        setDefaultMetrics();
+      } finally {
+        setIsLoading(false);
       }
+    };
+    
+    const setDefaultMetrics = () => {
+      setComparisonMetrics([
+        {
+          name: 'Carbon Footprint',
+          icon: Leaf,
+          original: 40,
+          alternative: 85,
+          label: 'percentage'
+        },
+        {
+          name: 'Water Usage',
+          icon: Droplet,
+          original: 45,
+          alternative: 88,
+          label: 'percentage'
+        },
+        {
+          name: 'Energy Efficiency',
+          icon: Zap,
+          original: 50,
+          alternative: 90,
+          label: 'percentage'
+        },
+        {
+          name: 'Recyclability',
+          icon: Recycle,
+          original: 30,
+          alternative: 95,
+          label: 'percentage'
+        }
+      ]);
     };
     
     loadComparisonData();
@@ -274,8 +284,27 @@ const ProductComparison: React.FC = () => {
     }
   };
   
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin h-10 w-10 border-4 border-green-500 border-t-transparent rounded-full"></div>
+        <p className="ml-3 text-neutral-600">Loading comparison...</p>
+      </div>
+    );
+  }
+  
   if (!selectedAlternative) {
-    return <div>Loading comparison...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <p className="text-neutral-600 mb-4">No alternatives found.</p>
+        <button 
+          onClick={() => navigate('/')}
+          className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg"
+        >
+          Go back home
+        </button>
+      </div>
+    );
   }
   
   return (

@@ -70,6 +70,21 @@ serve(async (req) => {
     const formattedImage = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
     const { blob, contentType } = dataURItoBlob(formattedImage);
     
+    // Create storage bucket if it doesn't exist
+    try {
+      const { data: buckets } = await supabase.storage.listBuckets();
+      if (!buckets?.find(bucket => bucket.name === 'aiforgood')) {
+        console.log('Creating aiforgood bucket...');
+        await supabase.storage.createBucket('aiforgood', {
+          public: true,
+          fileSizeLimit: 10485760 // 10MB
+        });
+      }
+    } catch (error) {
+      console.error('Error checking/creating bucket:', error);
+      // Continue anyway, might already exist
+    }
+    
     // Upload the image to Supabase Storage
     console.log('Uploading image to Supabase Storage bucket: aiforgood...');
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -155,6 +170,7 @@ serve(async (req) => {
             - Price (estimated)
             - Sustainability score (on a scale of 0-100, where higher is better)
             - Key sustainable features
+            - Add realistic image URLs for products from unsplash.com
             
             Also include sustainability metrics comparing the original product to the best alternative:
             - Carbon Footprint (percentage improvement)
@@ -168,7 +184,7 @@ serve(async (req) => {
                 "name": "Product Name",
                 "brand": "Brand Name",
                 "price": "$XX.XX",
-                "image": "URL or placeholder",
+                "image": "URL",
                 "sustainabilityScore": XX,
                 "category": "Category"
               },
@@ -178,7 +194,7 @@ serve(async (req) => {
                   "brand": "Alternative Brand",
                   "price": "$XX.XX",
                   "sustainabilityScore": XX,
-                  "image": "URL or placeholder",
+                  "image": "URL",
                   "category": "Category"
                 },
                 ...
@@ -205,7 +221,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Based on this product information, please suggest more sustainable alternatives and provide comparison metrics:\n\n${productInfo}`
+            content: `Based on this product information, please suggest more sustainable alternatives and provide comparison metrics including real image URLs from unsplash.com:\n\n${productInfo}`
           }
         ],
         max_tokens: 1536,
@@ -232,35 +248,51 @@ serve(async (req) => {
     let alternativesJson;
     try {
       alternativesJson = JSON.parse(alternativesInfo);
+      console.log('Successfully parsed alternatives JSON');
     } catch (error) {
       console.error('Error parsing alternatives JSON:', error);
       console.log('Raw alternatives info:', alternativesInfo);
       
-      // If JSON parsing fails, use a fallback structure
-      alternativesJson = {
-        original: {
-          name: "Standard Product",
-          brand: "Generic Brand",
-          price: "$10.99",
-          sustainabilityScore: 40,
-          category: "Unknown"
-        },
-        alternatives: [
-          {
-            name: "Eco-friendly Alternative",
-            brand: "Green Brand",
-            price: "$15.99",
-            sustainabilityScore: 85,
-            category: "Unknown"
-          }
-        ],
-        comparison: {
-          carbonFootprint: { original: 40, alternative: 85 },
-          waterUsage: { original: 45, alternative: 88 },
-          energyEfficiency: { original: 50, alternative: 90 },
-          recyclability: { original: 30, alternative: 95 }
+      // If JSON parsing fails, try to extract the JSON from the text
+      try {
+        const jsonString = alternativesInfo.match(/\{[\s\S]*\}/);
+        if (jsonString) {
+          alternativesJson = JSON.parse(jsonString[0]);
+          console.log('Successfully extracted and parsed JSON from text');
+        } else {
+          throw new Error('Could not extract JSON from response');
         }
-      };
+      } catch (extractError) {
+        console.error('Error extracting JSON:', extractError);
+        
+        // Use a fallback structure if all parsing attempts fail
+        alternativesJson = {
+          original: {
+            name: "Standard Product",
+            brand: "Generic Brand",
+            price: "$10.99",
+            sustainabilityScore: 40,
+            category: "Unknown",
+            image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+          },
+          alternatives: [
+            {
+              name: "Eco-friendly Alternative",
+              brand: "Green Brand",
+              price: "$15.99",
+              sustainabilityScore: 85,
+              category: "Unknown",
+              image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+            }
+          ],
+          comparison: {
+            carbonFootprint: { original: 40, alternative: 85 },
+            waterUsage: { original: 45, alternative: 88 },
+            energyEfficiency: { original: 50, alternative: 90 },
+            recyclability: { original: 30, alternative: 95 }
+          }
+        };
+      }
     }
 
     // Return both product info and alternatives

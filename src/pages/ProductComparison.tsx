@@ -29,15 +29,6 @@ const defaultAlternativeProducts: Product[] = [
     price: '$24.99',
     sustainabilityScore: 92,
     category: 'Drinkware'
-  },
-  {
-    id: '1b',
-    name: 'Recycled Plastic Bottle',
-    brand: 'EcoFlow',
-    image: 'https://images.unsplash.com/photo-1556401615-c909c3531b0d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
-    price: '$19.99',
-    sustainabilityScore: 78,
-    category: 'Drinkware'
   }
 ];
 
@@ -70,6 +61,7 @@ interface ComparisonData {
     image?: string;
     sustainabilityScore: number;
     category?: string;
+    id?: string;
   };
   alternatives: Array<{
     name: string;
@@ -78,6 +70,7 @@ interface ComparisonData {
     image?: string;
     sustainabilityScore: number;
     category?: string;
+    id?: string;
   }>;
   comparison: {
     carbonFootprint: { original: number; alternative: number; };
@@ -118,56 +111,71 @@ const ProductComparison: React.FC = () => {
             const parsedData: ComparisonData = JSON.parse(storedData);
             console.log('Parsed comparison data:', parsedData);
             
+            if (!parsedData.original || !parsedData.alternatives || !parsedData.comparison) {
+              console.error('Invalid data format:', parsedData);
+              throw new Error('Invalid data format');
+            }
+            
             // Process the original product
             const originalProduct: Product = {
-              id: '1',
+              id: parsedData.original.id || 'original',
               name: parsedData.original.name || defaultOriginalProduct.name,
               brand: parsedData.original.brand || defaultOriginalProduct.brand,
-              price: parsedData.original.price || defaultOriginalProduct.price,
-              sustainabilityScore: parsedData.original.sustainabilityScore || defaultOriginalProduct.sustainabilityScore,
-              category: parsedData.original.category || defaultOriginalProduct.category,
-              image: parsedData.original.image || getImagePlaceholder(parsedData.original.category || 'default')
+              price: parsedData.original.price || '$14.99',
+              sustainabilityScore: parsedData.original.sustainabilityScore || 60,
+              category: parsedData.original.category || 'Food',
+              image: parsedData.original.image || getImagePlaceholder('Food')
             };
             
             // Process the alternative products
             const alternativeProducts: Product[] = parsedData.alternatives.map((alt, index) => ({
-              id: `alt-${index}`,
+              id: alt.id || `alt-${index}`,
               name: alt.name || `Alternative ${index + 1}`,
               brand: alt.brand || 'Eco Brand',
-              price: alt.price || '$0.00',
+              price: alt.price || '$24.99',
               sustainabilityScore: alt.sustainabilityScore || 80,
               category: alt.category || originalProduct.category,
               image: alt.image || getImagePlaceholder(alt.category || 'default')
             }));
+            
+            // Normalize comparison values to percentages (0-100)
+            const normalizeValue = (value: number): number => {
+              // If value is already in 0-100 range, return it
+              if (value >= 0 && value <= 100) return value;
+              // If value is a small number (like 0.x), multiply it by 100
+              if (value >= 0 && value < 1) return Math.round(value * 100);
+              // Default to a value between 0-100
+              return Math.min(100, Math.max(0, value));
+            };
             
             // Set up comparison metrics
             const metrics: ComparisonMetricType[] = [
               {
                 name: 'Carbon Footprint',
                 icon: Leaf,
-                original: parsedData.comparison.carbonFootprint.original,
-                alternative: parsedData.comparison.carbonFootprint.alternative,
+                original: normalizeValue(parsedData.comparison.carbonFootprint.original),
+                alternative: normalizeValue(parsedData.comparison.carbonFootprint.alternative),
                 label: 'percentage'
               },
               {
                 name: 'Water Usage',
                 icon: Droplet,
-                original: parsedData.comparison.waterUsage.original,
-                alternative: parsedData.comparison.waterUsage.alternative,
+                original: normalizeValue(parsedData.comparison.waterUsage.original),
+                alternative: normalizeValue(parsedData.comparison.waterUsage.alternative),
                 label: 'percentage'
               },
               {
                 name: 'Energy Efficiency',
                 icon: Zap,
-                original: parsedData.comparison.energyEfficiency.original,
-                alternative: parsedData.comparison.energyEfficiency.alternative,
+                original: normalizeValue(parsedData.comparison.energyEfficiency.original),
+                alternative: normalizeValue(parsedData.comparison.energyEfficiency.alternative),
                 label: 'percentage'
               },
               {
                 name: 'Recyclability',
                 icon: Recycle,
-                original: parsedData.comparison.recyclability.original,
-                alternative: parsedData.comparison.recyclability.alternative,
+                original: normalizeValue(parsedData.comparison.recyclability.original),
+                alternative: normalizeValue(parsedData.comparison.recyclability.alternative),
                 label: 'percentage'
               }
             ];
@@ -182,7 +190,7 @@ const ProductComparison: React.FC = () => {
             console.log('Invalid JSON string:', storedData);
             toast({
               title: "Error parsing data",
-              description: "Invalid comparison data format.",
+              description: "Invalid comparison data format. Using default data.",
               variant: "destructive",
             });
             // Use defaults
@@ -243,31 +251,6 @@ const ProductComparison: React.FC = () => {
     
     loadComparisonData();
   }, [toast]);
-  
-  // Update comparison metrics when selected alternative changes
-  useEffect(() => {
-    if (selectedAlternative && comparisonMetrics.length > 0) {
-      // Create a deep copy of the metrics to avoid direct state mutation
-      const updatedMetrics = comparisonMetrics.map(metric => ({ ...metric }));
-      
-      // Update alternative values based on the selected alternative's score
-      updatedMetrics.forEach(metric => {
-        if (selectedAlternative.sustainabilityScore > 80) {
-          // For high sustainability score products, use the higher values
-          metric.alternative = metric.name === 'Recyclability' ? 95 : 
-                              metric.name === 'Energy Efficiency' ? 90 : 
-                              metric.name === 'Water Usage' ? 88 : 85;
-        } else {
-          // For medium sustainability score products, use medium values
-          metric.alternative = metric.name === 'Recyclability' ? 80 : 
-                              metric.name === 'Energy Efficiency' ? 75 : 
-                              metric.name === 'Water Usage' ? 70 : 65;
-        }
-      });
-      
-      setComparisonMetrics(updatedMetrics);
-    }
-  }, [selectedAlternative]);
   
   const handleChooseAlternative = () => {
     if (selectedAlternative) {

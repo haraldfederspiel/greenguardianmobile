@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X, Copy, Share2, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -142,7 +141,6 @@ const CameraPage: React.FC = () => {
           
           // Store the data in localStorage
           localStorage.setItem('productComparison', JSON.stringify(data.alternatives));
-          console.info('Parsed comparison data:', JSON.stringify(data.alternatives, null, 2));
           console.info('States updated with comparison data');
         } catch (storageError) {
           console.error('Error storing data in localStorage:', storageError);
@@ -165,7 +163,24 @@ const CameraPage: React.FC = () => {
                 sustainabilityScore: alt.sustainabilityScore,
                 image: alt.image
               })),
-              comparison: data.alternatives.comparison
+              comparison: {
+                carbonFootprint: {
+                  original: data.alternatives.comparison.carbonFootprint.original,
+                  alternative: data.alternatives.comparison.carbonFootprint.alternative
+                },
+                waterUsage: {
+                  original: data.alternatives.comparison.waterUsage.original,
+                  alternative: data.alternatives.comparison.waterUsage.alternative
+                },
+                energyEfficiency: {
+                  original: data.alternatives.comparison.energyEfficiency.original,
+                  alternative: data.alternatives.comparison.energyEfficiency.alternative
+                },
+                recyclability: {
+                  original: data.alternatives.comparison.recyclability.original,
+                  alternative: data.alternatives.comparison.recyclability.alternative
+                }
+              }
             };
             localStorage.setItem('productComparison', JSON.stringify(essentialData));
             console.log('Stored simplified data in localStorage');

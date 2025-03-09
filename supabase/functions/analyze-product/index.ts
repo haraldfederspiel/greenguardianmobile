@@ -236,6 +236,33 @@ serve(async (req) => {
     const productInfo = analyzeData.choices[0].message.content;
     console.log('Product analysis completed successfully');
     
+    // Extract product name and brand from the product info text
+    let productName = "Unknown Product";
+    let brandName = "Unknown Brand";
+    let productPrice = "$10.99";
+    
+    // Try to extract product name
+    const nameMatch = productInfo.match(/Product Name:?\s*([^\n]+)/i) || 
+                     productInfo.match(/Name:?\s*([^\n]+)/i);
+    if (nameMatch && nameMatch[1]) {
+      productName = nameMatch[1].trim();
+    }
+    
+    // Try to extract brand
+    const brandMatch = productInfo.match(/Brand:?\s*([^\n]+)/i);
+    if (brandMatch && brandMatch[1]) {
+      brandName = brandMatch[1].trim();
+    }
+    
+    // Try to extract price
+    const priceMatch = productInfo.match(/Price:?\s*([^\n]+)/i) || 
+                      productInfo.match(/\$\d+\.\d+/);
+    if (priceMatch && priceMatch[1]) {
+      productPrice = priceMatch[1].trim();
+    } else if (priceMatch) {
+      productPrice = priceMatch[0];
+    }
+    
     // Extract ingredients list from the product info text
     const ingredientsList = extractIngredients(productInfo);
     console.log('Extracted ingredients:', ingredientsList);
@@ -261,46 +288,46 @@ serve(async (req) => {
             Format your response EXACTLY using the following structure:
             {
               "original": {
-                "name": "Product Name",
-                "brand": "Brand Name",
-                "price": "$XX.XX",
-                "image": "https://images.unsplash.com/photo-1580428456289-31892e500545",
-                "sustainabilityScore": XX,
-                "ingredients": ["ingredient1", "ingredient2", "..."]
+                "name": "${productName}",
+                "brand": "${brandName}",
+                "price": "${productPrice}",
+                "image": "${imageUrl}",
+                "sustainabilityScore": 60,
+                "ingredients": ${JSON.stringify(ingredientsList)}
               },
               "alternatives": [
                 {
                   "name": "Alternative Product Name",
                   "brand": "Alternative Brand",
                   "price": "$XX.XX",
-                  "sustainabilityScore": XX,
+                  "sustainabilityScore": 85,
                   "image": "https://images.unsplash.com/photo-1580428456289-31892e500545",
                   "ingredients": ["eco-ingredient1", "eco-ingredient2", "..."]
                 }
               ],
               "comparison": {
                 "carbonFootprint": {
-                  "original": XX,
-                  "alternative": XX
+                  "original": 40,
+                  "alternative": 85
                 },
                 "waterUsage": {
-                  "original": XX,
-                  "alternative": XX
+                  "original": 45,
+                  "alternative": 88
                 },
                 "energyEfficiency": {
-                  "original": XX,
-                  "alternative": XX
+                  "original": 50,
+                  "alternative": 90
                 },
                 "recyclability": {
-                  "original": XX,
-                  "alternative": XX
+                  "original": 30,
+                  "alternative": 95
                 }
               }
             }`
           },
           {
             role: 'user',
-            content: `Based on this product information and its ingredients list: ${JSON.stringify(ingredientsList)}, 
+            content: `Based on this product information: "${productName}" by "${brandName}" with ingredients ${JSON.stringify(ingredientsList)}, 
             
             Please suggest a more sustainable alternative product with similar ingredients but better environmental metrics. Keep in mind that the alternative should serve the same purpose and offer similar benefits.
             
@@ -338,6 +365,23 @@ serve(async (req) => {
     alternativesJson.alternatives.forEach((alt, index) => {
       alt.id = `alternative-${index + 1}`;
     });
+    
+    // Make sure all percentage values are in range 0-100
+    const normalizePercentages = (comparison) => {
+      Object.keys(comparison).forEach(key => {
+        if (typeof comparison[key].original === 'number' && comparison[key].original < 1) {
+          comparison[key].original = Math.round(comparison[key].original * 100);
+        }
+        if (typeof comparison[key].alternative === 'number' && comparison[key].alternative < 1) {
+          comparison[key].alternative = Math.round(comparison[key].alternative * 100);
+        }
+      });
+      return comparison;
+    };
+    
+    if (alternativesJson.comparison) {
+      alternativesJson.comparison = normalizePercentages(alternativesJson.comparison);
+    }
 
     // Return both product info and alternatives
     return new Response(JSON.stringify({ 

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X, Navigation2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -91,12 +90,11 @@ const CameraPage: React.FC = () => {
         total: data.totalIngredients
       });
       
-      // Set analyzed product information for comparison
       setAnalyzedProduct({
-        name: "Unknown Product", // We don't have actual product name detection
-        brand: "Unknown Brand",
+        name: "Analyzed Product",
+        brand: "Detected Brand",
         image: capturedImage,
-        sustainabilityScore: data.averageScore || 40 // Fallback to 40 if null
+        sustainabilityScore: data.averageScore || 40
       });
       
       toast({
@@ -120,7 +118,6 @@ const CameraPage: React.FC = () => {
   const navigateToComparison = () => {
     if (!analyzedProduct) return;
     
-    // Pass the analyzed product data through navigation state
     navigate('/compare/custom', { 
       state: { 
         originalProduct: {
@@ -130,8 +127,13 @@ const CameraPage: React.FC = () => {
           image: analyzedProduct.image,
           price: 'Unknown',
           sustainabilityScore: analyzedProduct.sustainabilityScore,
-          category: 'Unknown'
-        }
+          category: 'Personal Care'
+        },
+        ingredientsData: matchStats ? {
+          ingredients: matchStats.total > 0 ? Array(matchStats.total).fill("ingredient") : undefined,
+          matchedCount: matchStats.matched,
+          totalCount: matchStats.total
+        } : undefined
       } 
     });
   };
@@ -157,8 +159,8 @@ const CameraPage: React.FC = () => {
                 onError={(e) => {
                   console.error('Image failed to load:', e);
                   const target = e.target as HTMLImageElement;
-                  target.onerror = null; // Prevent infinite loop
-                  target.src = 'https://images.unsplash.com/photo-1580428456289-31892e500545?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'; // Fallback image
+                  target.onerror = null;
+                  target.src = 'https://images.unsplash.com/photo-1580428456289-31892e500545?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
                 }}
               />
             </div>

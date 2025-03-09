@@ -70,10 +70,10 @@ serve(async (req) => {
     const formattedImage = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
     const { blob, contentType } = dataURItoBlob(formattedImage);
     
-    // Upload the image to Supabase Storage
-    console.log('Uploading image to Supabase Storage...');
+    // Upload the image to Supabase Storage - changed bucket from 'product-images' to 'aiforgood'
+    console.log('Uploading image to Supabase Storage bucket: aiforgood...');
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('product-images')
+      .from('aiforgood')
       .upload(filename, blob, {
         contentType,
         upsert: true,
@@ -86,7 +86,7 @@ serve(async (req) => {
     
     // Get public URL for the uploaded image
     const { data: publicURLData } = supabase.storage
-      .from('product-images')
+      .from('aiforgood')
       .getPublicUrl(filename);
     
     const imageUrl = publicURLData.publicUrl;

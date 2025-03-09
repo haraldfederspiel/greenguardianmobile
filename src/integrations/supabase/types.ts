@@ -9,6 +9,21 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      "Ingredient list and score": {
+        Row: {
+          "Ingredient Name": string
+          Score: number | null
+        }
+        Insert: {
+          "Ingredient Name": string
+          Score?: number | null
+        }
+        Update: {
+          "Ingredient Name"?: string
+          Score?: number | null
+        }
+        Relationships: []
+      }
       "Sustainable products DB": {
         Row: {
           Ingredients: string | null

@@ -26,9 +26,8 @@ const CameraPage: React.FC = () => {
   };
 
   const triggerCameraCapture = () => {
-    // On mobile devices, this should open the camera directly
+    // This function should trigger the device camera on mobile
     if (cameraInputRef.current) {
-      // Reset the input first to ensure the change event fires even if the user selects the same file
       cameraInputRef.current.value = '';
       cameraInputRef.current.click();
     }
@@ -90,21 +89,6 @@ const CameraPage: React.FC = () => {
             <p className="text-neutral-600 text-center mb-6">
               Take a photo of a product<br />to analyze its sustainability
             </p>
-            <input 
-              type="file" 
-              accept="image/*" 
-              ref={fileInputRef} 
-              onChange={handleFileUpload} 
-              className="hidden" 
-            />
-            <input 
-              type="file" 
-              accept="image/*" 
-              capture="environment"
-              ref={cameraInputRef} 
-              onChange={handleFileUpload} 
-              className="hidden" 
-            />
           </div>
         )}
 
@@ -145,6 +129,25 @@ const CameraPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Hidden file inputs */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+      />
+      
+      {/* Camera input specifically for mobile devices */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        ref={cameraInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+      />
     </div>
   );
 };

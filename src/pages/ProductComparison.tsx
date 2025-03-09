@@ -32,7 +32,7 @@ const alternativeProducts: Product[] = [
     id: '1b',
     name: 'Recycled Plastic Bottle',
     brand: 'EcoFlow',
-    image: 'https://images.unsplash.com/photo-1624797432677-6f803a98acb3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cmVjeWNsZWQlMjBwbGFzdGljJTIwYm90dGxlfGVufDB8fDB8fHww',
+    image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
     price: '$19.99',
     sustainabilityScore: 78,
     category: 'Drinkware'

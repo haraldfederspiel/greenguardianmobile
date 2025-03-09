@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -61,6 +62,11 @@ const CameraPage: React.FC = () => {
       if (error) {
         console.error('Supabase function error:', error);
         throw new Error('Failed to analyze image');
+      }
+      
+      if (!data || !data.result) {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response from analysis service');
       }
       
       setProductInfo(data.result);

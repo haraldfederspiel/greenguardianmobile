@@ -2,7 +2,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+// Get the API key from environment variables
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY') || Deno.env.get('groq'); // Try both capitalization formats
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +18,8 @@ serve(async (req) => {
 
   try {
     if (!GROQ_API_KEY) {
-      throw new Error('GROQ_API_KEY is not configured');
+      console.error('GROQ_API_KEY environment variable is not set');
+      throw new Error('GROQ_API_KEY is not configured. Please check your Supabase Edge Function Secrets.');
     }
 
     const { image } = await req.json();
@@ -58,11 +60,17 @@ serve(async (req) => {
       }),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Groq API error response:', errorData);
+      throw new Error(`Groq API error: ${errorData.error?.message || `HTTP status ${response.status}`}`);
+    }
+    
     const data = await response.json();
     
-    if (!response.ok) {
-      console.error('Groq API error:', data);
-      throw new Error(`Groq API error: ${data.error?.message || 'Unknown error'}`);
+    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected response format from Groq:', data);
+      throw new Error('Invalid response format from Groq API');
     }
     
     const result = data.choices[0].message.content;

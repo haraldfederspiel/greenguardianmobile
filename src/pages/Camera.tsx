@@ -4,11 +4,23 @@ import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import Logo from '../components/Logo';
 import { supabase } from '@/integrations/supabase/client';
+import SustainabilityScore from '@/components/SustainabilityScore';
 
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [ingredients, setIngredients] = useState<string[] | null>(null);
+  const [sustainabilityScore, setSustainabilityScore] = useState<number | null>(null);
+  const [ingredientScores, setIngredientScores] = useState<Array<{
+    ingredient: string;
+    score: number | null;
+    matchedWith: string | null;
+  }> | null>(null);
+  const [matchStats, setMatchStats] = useState<{
+    matched: number;
+    total: number;
+  } | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -20,6 +32,9 @@ const CameraPage: React.FC = () => {
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
         setIngredients(null);
+        setSustainabilityScore(null);
+        setIngredientScores(null);
+        setMatchStats(null);
       };
       reader.readAsDataURL(file);
     }
@@ -39,6 +54,9 @@ const CameraPage: React.FC = () => {
   const clearImage = () => {
     setCapturedImage(null);
     setIngredients(null);
+    setSustainabilityScore(null);
+    setIngredientScores(null);
+    setMatchStats(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -68,10 +86,18 @@ const CameraPage: React.FC = () => {
       }
       
       setIngredients(data.ingredients);
+      setSustainabilityScore(data.averageScore);
+      setIngredientScores(data.ingredientScores);
+      setMatchStats({
+        matched: data.matchedIngredients,
+        total: data.totalIngredients
+      });
       
       toast({
-        title: "Ingredients extracted",
-        description: "Successfully extracted ingredients from the product image.",
+        title: "Analysis complete",
+        description: data.averageScore !== null 
+          ? `Extracted ${data.ingredients.length} ingredients with an average sustainability score of ${data.averageScore}.` 
+          : `Extracted ${data.ingredients.length} ingredients, but no sustainability scores were found.`,
       });
     } catch (error) {
       console.error('Error analyzing product:', error);
@@ -129,14 +155,40 @@ const CameraPage: React.FC = () => {
           </div>
         )}
 
+        {sustainabilityScore !== null && (
+          <div className="mt-6 flex flex-col items-center">
+            <h3 className="font-medium text-green-800 mb-2">Sustainability Score</h3>
+            <SustainabilityScore score={sustainabilityScore} size="lg" showLabel={true} />
+            {matchStats && (
+              <p className="text-sm text-neutral-500 mt-2">
+                Based on {matchStats.matched} of {matchStats.total} ingredients
+              </p>
+            )}
+          </div>
+        )}
+
         {ingredients && ingredients.length > 0 && (
           <div className="mt-6 p-4 bg-green-50 rounded-xl w-full max-w-xs">
             <h3 className="font-medium text-green-800 mb-2">Ingredients List</h3>
             <div className="text-sm text-green-700">
               <ul className="list-disc pl-5 space-y-1">
-                {ingredients.map((ingredient, index) => (
-                  <li key={index}>{ingredient}</li>
-                ))}
+                {ingredients.map((ingredient, index) => {
+                  const scoreInfo = ingredientScores?.find(s => s.ingredient === ingredient);
+                  return (
+                    <li key={index} className="flex items-start justify-between">
+                      <span>{ingredient}</span>
+                      {scoreInfo?.score !== null && scoreInfo?.score !== undefined && (
+                        <span className={`ml-2 font-medium ${
+                          scoreInfo.score >= 75 ? 'text-green-600' : 
+                          scoreInfo.score >= 50 ? 'text-yellow-600' : 
+                          'text-red-600'
+                        }`}>
+                          {scoreInfo.score}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

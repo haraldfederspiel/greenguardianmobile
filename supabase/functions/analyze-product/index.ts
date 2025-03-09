@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.37.0";
@@ -71,6 +72,16 @@ serve(async (req) => {
     
     // Upload the image to Supabase Storage
     console.log('Uploading image to Supabase Storage bucket: aiforgood...');
+    
+    // Create the storage bucket if it doesn't exist
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.some(bucket => bucket.name === 'aiforgood')) {
+      console.log('Creating aiforgood bucket...');
+      await supabase.storage.createBucket('aiforgood', {
+        public: true,
+      });
+    }
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('aiforgood')
       .upload(filename, blob, {
@@ -153,9 +164,59 @@ serve(async (req) => {
       ingredients = [result];
     }
 
-    return new Response(JSON.stringify({ ingredients }), {
+    // Now, query the "Ingredient list and score" table for each ingredient
+    console.log('Querying "Ingredient list and score" table for ingredient scores...');
+    
+    let totalScore = 0;
+    let matchedIngredients = 0;
+    const ingredientScores = [];
+    
+    for (const ingredient of ingredients) {
+      // Use SQL LIKE query to find approximate matches, case insensitive
+      const { data: scoreData, error: scoreError } = await supabase
+        .from('Ingredient list and score')
+        .select('Score, "Ingredient Name"')
+        .ilike('Ingredient Name', `%${ingredient}%`)
+        .limit(1);
+      
+      if (scoreError) {
+        console.error(`Error querying score for ingredient ${ingredient}:`, scoreError);
+        continue;
+      }
+      
+      if (scoreData && scoreData.length > 0 && scoreData[0].Score !== null) {
+        console.log(`Found score for "${ingredient}": ${scoreData[0].Score}`);
+        totalScore += scoreData[0].Score;
+        matchedIngredients++;
+        ingredientScores.push({
+          ingredient,
+          score: scoreData[0].Score,
+          matchedWith: scoreData[0]['Ingredient Name']
+        });
+      } else {
+        console.log(`No score found for ingredient "${ingredient}"`);
+        ingredientScores.push({
+          ingredient,
+          score: null,
+          matchedWith: null
+        });
+      }
+    }
+    
+    // Calculate average score if there are any matched ingredients
+    const averageScore = matchedIngredients > 0 ? Math.round(totalScore / matchedIngredients) : null;
+    console.log(`Average sustainability score: ${averageScore !== null ? averageScore : 'N/A'} (based on ${matchedIngredients} of ${ingredients.length} ingredients)`);
+
+    return new Response(JSON.stringify({ 
+      ingredients,
+      averageScore,
+      matchedIngredients,
+      totalIngredients: ingredients.length,
+      ingredientScores
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+    
   } catch (error) {
     console.error('Error in analyze-product function:', error);
     return new Response(JSON.stringify({ error: error.message }), {

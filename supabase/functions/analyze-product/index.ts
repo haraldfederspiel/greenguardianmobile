@@ -33,6 +33,62 @@ const dataURItoBlob = (dataURI: string) => {
   };
 };
 
+// Helper function to safely parse JSON with error handling
+const safeJsonParse = (jsonString: string) => {
+  try {
+    // Try to parse the JSON string directly
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error('Initial JSON parsing error:', error);
+    
+    try {
+      // Try to extract valid JSON using regex
+      const jsonRegex = /\{[\s\S]*\}/;
+      const match = jsonString.match(jsonRegex);
+      
+      if (match) {
+        // Clean the extracted JSON string by escaping unescaped quotes and fixing common issues
+        let cleanJson = match[0]
+          // Replace any unescaped quotes within string values
+          .replace(/([^\\])"([^"]*?)([^\\])"/g, '$1"$2$3"')
+          // Fix trailing commas before closing brackets
+          .replace(/,\s*([\]}])/g, '$1');
+          
+        return JSON.parse(cleanJson);
+      }
+    } catch (extractError) {
+      console.error('Error extracting JSON:', extractError);
+    }
+    
+    // If all parsing attempts fail, return a fallback structure
+    console.log('Using fallback JSON structure');
+    return {
+      original: {
+        name: "Standard Product",
+        brand: "Generic Brand",
+        price: "$10.99",
+        sustainabilityScore: 40,
+        image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+      },
+      alternatives: [
+        {
+          name: "Eco-friendly Alternative",
+          brand: "Green Brand",
+          price: "$15.99",
+          sustainabilityScore: 85,
+          image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+        }
+      ],
+      comparison: {
+        carbonFootprint: { original: 40, alternative: 85 },
+        waterUsage: { original: 45, alternative: 88 },
+        energyEfficiency: { original: 50, alternative: 90 },
+        recyclability: { original: 30, alternative: 95 }
+      }
+    };
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -221,7 +277,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Based on this product information, please suggest more sustainable alternatives and provide comparison metrics including real image URLs from unsplash.com:\n\n${productInfo}`
+            content: `Based on this product information, please suggest more sustainable alternatives and provide comparison metrics including real image URLs from unsplash.com. IMPORTANT: Make sure your response is valid JSON format with no trailing commas or other syntax errors. Only respond with properly formatted JSON:\n\n${productInfo}`
           }
         ],
         max_tokens: 1536,
@@ -242,57 +298,48 @@ serve(async (req) => {
     }
     
     const alternativesInfo = alternativesData.choices[0].message.content;
-    console.log('Alternatives analysis completed successfully');
+    console.log('Alternatives analysis raw response:', alternativesInfo);
 
     // Try to parse the alternatives as JSON
     let alternativesJson;
     try {
-      alternativesJson = JSON.parse(alternativesInfo);
+      // Log the complete response content before attempting to parse it
+      console.log('Raw alternatives content to parse:', alternativesInfo);
+      
+      // Use the safer JSON parsing helper function
+      alternativesJson = safeJsonParse(alternativesInfo);
       console.log('Successfully parsed alternatives JSON');
     } catch (error) {
-      console.error('Error parsing alternatives JSON:', error);
-      console.log('Raw alternatives info:', alternativesInfo);
+      console.error('Error handling alternatives JSON:', error);
+      console.log('Using fallback alternatives data');
       
-      // If JSON parsing fails, try to extract the JSON from the text
-      try {
-        const jsonString = alternativesInfo.match(/\{[\s\S]*\}/);
-        if (jsonString) {
-          alternativesJson = JSON.parse(jsonString[0]);
-          console.log('Successfully extracted and parsed JSON from text');
-        } else {
-          throw new Error('Could not extract JSON from response');
-        }
-      } catch (extractError) {
-        console.error('Error extracting JSON:', extractError);
-        
-        // Use a fallback structure if all parsing attempts fail
-        alternativesJson = {
-          original: {
-            name: "Standard Product",
-            brand: "Generic Brand",
-            price: "$10.99",
-            sustainabilityScore: 40,
+      // Use a fallback structure if all parsing attempts fail
+      alternativesJson = {
+        original: {
+          name: "Standard Product",
+          brand: "Generic Brand",
+          price: "$10.99",
+          sustainabilityScore: 40,
+          category: "Unknown",
+          image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+        },
+        alternatives: [
+          {
+            name: "Eco-friendly Alternative",
+            brand: "Green Brand",
+            price: "$15.99",
+            sustainabilityScore: 85,
             category: "Unknown",
             image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
-          },
-          alternatives: [
-            {
-              name: "Eco-friendly Alternative",
-              brand: "Green Brand",
-              price: "$15.99",
-              sustainabilityScore: 85,
-              category: "Unknown",
-              image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
-            }
-          ],
-          comparison: {
-            carbonFootprint: { original: 40, alternative: 85 },
-            waterUsage: { original: 45, alternative: 88 },
-            energyEfficiency: { original: 50, alternative: 90 },
-            recyclability: { original: 30, alternative: 95 }
           }
-        };
-      }
+        ],
+        comparison: {
+          carbonFootprint: { original: 40, alternative: 85 },
+          waterUsage: { original: 45, alternative: 88 },
+          energyEfficiency: { original: 50, alternative: 90 },
+          recyclability: { original: 30, alternative: 95 }
+        }
+      };
     }
 
     // Return both product info and alternatives

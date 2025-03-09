@@ -134,8 +134,32 @@ const CameraPage: React.FC = () => {
       if (data.alternatives) {
         console.log('Setting alternatives data:', data.alternatives);
         setAlternatives(data.alternatives);
-        // Store in localStorage immediately
-        localStorage.setItem('productComparison', JSON.stringify(data.alternatives));
+        
+        // Ensure we have a valid alternatives object to store in localStorage
+        const validatedAlternatives = typeof data.alternatives === 'string' 
+          ? JSON.parse(data.alternatives) 
+          : data.alternatives;
+          
+        // Store in localStorage with validation
+        try {
+          localStorage.setItem('productComparison', JSON.stringify(validatedAlternatives));
+          console.log('Successfully stored alternatives in localStorage');
+        } catch (storageError) {
+          console.error('Error storing data in localStorage:', storageError);
+          // Try to store a simplified version if the full object is too large
+          try {
+            const simplifiedData = {
+              original: validatedAlternatives.original,
+              alternatives: validatedAlternatives.alternatives ? 
+                [validatedAlternatives.alternatives[0]] : [],
+              comparison: validatedAlternatives.comparison
+            };
+            localStorage.setItem('productComparison', JSON.stringify(simplifiedData));
+            console.log('Stored simplified alternatives in localStorage');
+          } catch (fallbackError) {
+            console.error('Failed to store even simplified data:', fallbackError);
+          }
+        }
       } else {
         console.warn('No alternatives data received from analysis');
       }
@@ -160,10 +184,8 @@ const CameraPage: React.FC = () => {
 
   const viewAlternatives = () => {
     if (alternatives) {
-      // Already stored in localStorage during analysis
       navigate('/compare/1');
     } else {
-      // If no alternatives were found, navigate with default data
       toast({
         description: "No sustainable alternatives were found for this product.",
         variant: "destructive",

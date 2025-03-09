@@ -35,7 +35,7 @@ serve(async (req) => {
     
     console.log('Sending request to Groq for analysis...');
     
-    // Using Groq's multimodal capabilities with image URL
+    // Fix: Groq expects each message's content to be a string, not an object or array
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -51,18 +51,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: [
-              { 
-                type: 'text', 
-                text: 'Please analyze this product image and extract all text information. Focus on the product name, ingredients list, and any sustainability claims or certifications.' 
-              },
-              { 
-                type: 'image_url', 
-                image_url: { 
-                  url: formattedImage 
-                } 
-              }
-            ]
+            content: `Please analyze this product image and extract all text information. Focus on the product name, ingredients list, and any sustainability claims or certifications. The image is provided as a base64 string: ${formattedImage}`
           }
         ],
         max_tokens: 1024,

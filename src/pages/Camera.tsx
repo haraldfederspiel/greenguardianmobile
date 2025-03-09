@@ -1,10 +1,11 @@
 
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, X } from 'lucide-react';
+import { Camera, Upload, X, Navigation2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import Logo from '../components/Logo';
 import { supabase } from '@/integrations/supabase/client';
 import SustainabilityScore from '@/components/SustainabilityScore';
+import { useNavigate } from 'react-router-dom';
 
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -14,10 +15,17 @@ const CameraPage: React.FC = () => {
     matched: number;
     total: number;
   } | null>(null);
+  const [analyzedProduct, setAnalyzedProduct] = useState<{
+    name: string;
+    brand: string;
+    image: string;
+    sustainabilityScore: number;
+  } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -27,6 +35,7 @@ const CameraPage: React.FC = () => {
         setCapturedImage(reader.result as string);
         setSustainabilityScore(null);
         setMatchStats(null);
+        setAnalyzedProduct(null);
       };
       reader.readAsDataURL(file);
     }
@@ -47,6 +56,7 @@ const CameraPage: React.FC = () => {
     setCapturedImage(null);
     setSustainabilityScore(null);
     setMatchStats(null);
+    setAnalyzedProduct(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -81,6 +91,14 @@ const CameraPage: React.FC = () => {
         total: data.totalIngredients
       });
       
+      // Set analyzed product information for comparison
+      setAnalyzedProduct({
+        name: "Unknown Product", // We don't have actual product name detection
+        brand: "Unknown Brand",
+        image: capturedImage,
+        sustainabilityScore: data.averageScore || 40 // Fallback to 40 if null
+      });
+      
       toast({
         title: "Analysis complete",
         description: data.averageScore !== null 
@@ -97,6 +115,25 @@ const CameraPage: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const navigateToComparison = () => {
+    if (!analyzedProduct) return;
+    
+    // Pass the analyzed product data through navigation state
+    navigate('/compare/custom', { 
+      state: { 
+        originalProduct: {
+          id: 'custom',
+          name: analyzedProduct.name,
+          brand: analyzedProduct.brand,
+          image: analyzedProduct.image,
+          price: 'Unknown',
+          sustainabilityScore: analyzedProduct.sustainabilityScore,
+          category: 'Unknown'
+        }
+      } 
+    });
   };
 
   return (
@@ -157,20 +194,30 @@ const CameraPage: React.FC = () => {
 
         <div className="mt-8 flex flex-col w-full max-w-xs space-y-4">
           {capturedImage ? (
-            <button 
-              onClick={analyzeProduct}
-              disabled={isProcessing}
-              className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-xl shadow-lg shadow-green-500/20 transition-all duration-300 flex items-center justify-center"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Analyzing...
-                </>
-              ) : (
-                "Analyze Product"
-              )}
-            </button>
+            sustainabilityScore !== null ? (
+              <button 
+                onClick={navigateToComparison}
+                className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-xl shadow-lg shadow-green-500/20 transition-all duration-300 flex items-center justify-center"
+              >
+                <Navigation2 size={18} className="mr-2" />
+                Display Alternative Products
+              </button>
+            ) : (
+              <button 
+                onClick={analyzeProduct}
+                disabled={isProcessing}
+                className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-xl shadow-lg shadow-green-500/20 transition-all duration-300 flex items-center justify-center"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Analyzing...
+                  </>
+                ) : (
+                  "Analyze Product"
+                )}
+              </button>
+            )
           ) : (
             <>
               <button 

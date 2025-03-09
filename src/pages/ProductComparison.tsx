@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Check, Droplet, Leaf, Recycle, Zap } from 'lucide-react';
 import SustainabilityScore from '../components/SustainabilityScore';
 import { Product } from '../components/ProductCard';
@@ -39,6 +39,38 @@ const alternativeProducts: Product[] = [
   }
 ];
 
+// Generate alternative products based on category and sustainabilityScore
+const generateAlternatives = (product: Product): Product[] => {
+  // Default alternatives if no category/score
+  if (!product || product.sustainabilityScore === undefined) {
+    return alternativeProducts;
+  }
+  
+  // Generate alternatives with higher sustainability scores
+  const targetScore = Math.min(product.sustainabilityScore + 30, 95);
+  
+  return [
+    {
+      id: 'alt1',
+      name: `Eco-friendly ${product.category || 'Product'}`,
+      brand: 'GreenLife',
+      image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
+      price: 'Premium Price',
+      sustainabilityScore: targetScore,
+      category: product.category || 'Unknown'
+    },
+    {
+      id: 'alt2',
+      name: `Recycled ${product.category || 'Product'}`,
+      brand: 'EcoFlow',
+      image: 'https://images.unsplash.com/photo-1556228578-8c89e6e8ad70?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGVjbyUyMGZyaWVuZGx5fGVufDB8fDB8fHww',
+      price: 'Standard Price',
+      sustainabilityScore: Math.max(targetScore - 15, product.sustainabilityScore + 20),
+      category: product.category || 'Unknown'
+    }
+  ];
+};
+
 interface ComparisonMetric {
   name: string;
   icon: LucideIcon;
@@ -50,18 +82,26 @@ interface ComparisonMetric {
 const ProductComparison: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
-  const [product] = useState<Product>(originalProduct);
-  const [alternatives] = useState<Product[]>(alternativeProducts);
+  // Get product data from location state if available (for custom products)
+  const customProduct = location.state?.originalProduct;
+  
+  const [product, setProduct] = useState<Product>(customProduct || originalProduct);
+  const [alternatives, setAlternatives] = useState<Product[]>([]);
   const [selectedAlternative, setSelectedAlternative] = useState<Product | null>(null);
   
-  // Set the first alternative as default
+  // Generate alternatives based on the product
   useEffect(() => {
-    if (alternatives.length > 0 && !selectedAlternative) {
-      setSelectedAlternative(alternatives[0]);
+    const altProducts = generateAlternatives(product);
+    setAlternatives(altProducts);
+    
+    // Set first alternative as default if none selected
+    if (altProducts.length > 0 && !selectedAlternative) {
+      setSelectedAlternative(altProducts[0]);
     }
-  }, [alternatives, selectedAlternative]);
+  }, [product]);
   
   // Comparison metrics
   const comparisonMetrics: ComparisonMetric[] = [

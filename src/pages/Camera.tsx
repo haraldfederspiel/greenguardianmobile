@@ -7,6 +7,7 @@ const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,10 +25,17 @@ const CameraPage: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const triggerCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
   const clearImage = () => {
     setCapturedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
     }
   };
 
@@ -84,6 +92,14 @@ const CameraPage: React.FC = () => {
               onChange={handleFileUpload} 
               className="hidden" 
             />
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment"
+              ref={cameraInputRef} 
+              onChange={handleFileUpload} 
+              className="hidden" 
+            />
           </div>
         )}
 
@@ -106,7 +122,7 @@ const CameraPage: React.FC = () => {
           ) : (
             <>
               <button 
-                onClick={triggerFileUpload}
+                onClick={triggerCameraCapture}
                 className="bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-6 rounded-xl shadow-lg shadow-green-500/20 transition-all duration-300 flex items-center justify-center"
               >
                 <Camera size={18} className="mr-2" />

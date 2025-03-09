@@ -135,27 +135,40 @@ const CameraPage: React.FC = () => {
         console.log('Setting alternatives data:', data.alternatives);
         setAlternatives(data.alternatives);
         
-        // Ensure we have a valid alternatives object to store in localStorage
-        const validatedAlternatives = typeof data.alternatives === 'string' 
-          ? JSON.parse(data.alternatives) 
-          : data.alternatives;
-          
-        // Store in localStorage with validation
+        // Store in localStorage with proper validation and error handling
         try {
-          localStorage.setItem('productComparison', JSON.stringify(validatedAlternatives));
-          console.log('Successfully stored alternatives in localStorage');
+          // Log the raw data for debugging
+          console.info('Raw stored data:', JSON.stringify(data.alternatives));
+          
+          // Store the data in localStorage
+          localStorage.setItem('productComparison', JSON.stringify(data.alternatives));
+          console.info('Parsed comparison data:', JSON.stringify(data.alternatives, null, 2));
+          console.info('States updated with comparison data');
         } catch (storageError) {
           console.error('Error storing data in localStorage:', storageError);
-          // Try to store a simplified version if the full object is too large
+          // If the full data is too large, try storing just essential info
           try {
-            const simplifiedData = {
-              original: validatedAlternatives.original,
-              alternatives: validatedAlternatives.alternatives ? 
-                [validatedAlternatives.alternatives[0]] : [],
-              comparison: validatedAlternatives.comparison
+            const essentialData = {
+              original: {
+                id: data.alternatives.original.id || 'original',
+                name: data.alternatives.original.name,
+                brand: data.alternatives.original.brand,
+                price: data.alternatives.original.price,
+                sustainabilityScore: data.alternatives.original.sustainabilityScore,
+                image: data.alternatives.original.image
+              },
+              alternatives: data.alternatives.alternatives?.slice(0, 1).map(alt => ({
+                id: alt.id || 'alternative-1',
+                name: alt.name,
+                brand: alt.brand,
+                price: alt.price,
+                sustainabilityScore: alt.sustainabilityScore,
+                image: alt.image
+              })),
+              comparison: data.alternatives.comparison
             };
-            localStorage.setItem('productComparison', JSON.stringify(simplifiedData));
-            console.log('Stored simplified alternatives in localStorage');
+            localStorage.setItem('productComparison', JSON.stringify(essentialData));
+            console.log('Stored simplified data in localStorage');
           } catch (fallbackError) {
             console.error('Failed to store even simplified data:', fallbackError);
           }

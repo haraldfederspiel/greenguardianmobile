@@ -47,12 +47,15 @@ const safeJsonParse = (jsonString: string) => {
       const match = jsonString.match(jsonRegex);
       
       if (match) {
-        // Clean the extracted JSON string by escaping unescaped quotes and fixing common issues
+        // Clean the extracted JSON string
         let cleanJson = match[0]
-          // Replace any unescaped quotes within string values
-          .replace(/([^\\])"([^"]*?)([^\\])"/g, '$1"$2$3"')
-          // Fix trailing commas before closing brackets
-          .replace(/,\s*([\]}])/g, '$1');
+          // Replace trailing commas before closing brackets
+          .replace(/,\s*([\]}])/g, '$1')
+          // Fix quotes in nested JSON
+          .replace(/([^\\])"/g, '$1\\"')
+          .replace(/\\\\"/g, '\\"')
+          // Ensure proper quotes around property names
+          .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3');
           
         return JSON.parse(cleanJson);
       }
@@ -64,11 +67,12 @@ const safeJsonParse = (jsonString: string) => {
     console.log('Using fallback JSON structure');
     return {
       original: {
-        name: "Standard Product",
-        brand: "Generic Brand",
+        name: "Product Name (Default)",
+        brand: "Brand Name",
         price: "$10.99",
         sustainabilityScore: 40,
-        image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+        image: "https://images.unsplash.com/photo-1580428456289-31892e500545",
+        ingredients: ["ingredient 1", "ingredient 2", "ingredient 3"]
       },
       alternatives: [
         {
@@ -76,7 +80,8 @@ const safeJsonParse = (jsonString: string) => {
           brand: "Green Brand",
           price: "$15.99",
           sustainabilityScore: 85,
-          image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
+          image: "https://images.unsplash.com/photo-1580428456289-31892e500545",
+          ingredients: ["eco ingredient 1", "eco ingredient 2", "eco ingredient 3"]
         }
       ],
       comparison: {
@@ -87,6 +92,33 @@ const safeJsonParse = (jsonString: string) => {
       }
     };
   }
+};
+
+// Extract ingredients from text
+const extractIngredients = (text: string): string[] => {
+  // Look for ingredients list in the text
+  const ingredientsRegex = /ingredients:?.*?:(.*?)(?:\n\n|\n[A-Z]|$)/si;
+  const match = text.match(ingredientsRegex);
+  
+  if (match && match[1]) {
+    // Split by common ingredient separators and clean up
+    return match[1]
+      .split(/[,•*\n-]/)
+      .map(i => i.trim())
+      .filter(i => i.length > 0 && !i.match(/^\d+%$/) && !i.match(/^contains/i));
+  }
+  
+  // If no structured list found, try to extract from the whole text
+  const allWords = text.split(/[\s,\n-]+/);
+  const possibleIngredients = allWords
+    .filter(word => 
+      word.length > 3 && 
+      !word.match(/^\d/) && 
+      !["the", "and", "with", "from", "contains", "may", "product"].includes(word.toLowerCase())
+    )
+    .slice(0, 10); // Limit to 10 potential ingredients
+  
+  return possibleIngredients;
 };
 
 serve(async (req) => {
@@ -203,8 +235,12 @@ serve(async (req) => {
     
     const productInfo = analyzeData.choices[0].message.content;
     console.log('Product analysis completed successfully');
+    
+    // Extract ingredients list from the product info text
+    const ingredientsList = extractIngredients(productInfo);
+    console.log('Extracted ingredients:', ingredientsList);
 
-    // Now, use the product info to find sustainable alternatives
+    // Now, use the product info and ingredients to find sustainable alternatives
     console.log('Finding sustainable alternatives...');
     
     const alternativesResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -219,30 +255,18 @@ serve(async (req) => {
           {
             role: 'system',
             content: `You are a sustainability expert who helps users find eco-friendly alternatives to products.
-            Given a product's information, identify 2-3 more sustainable alternatives that serve the same function.
-            Provide detailed information about each alternative including:
-            - Product name
-            - Brand
-            - Price (estimated)
-            - Sustainability score (on a scale of 0-100, where higher is better)
-            - Key sustainable features
-            - Add realistic image URLs for products from unsplash.com
             
-            Also include sustainability metrics comparing the original product to the best alternative:
-            - Carbon Footprint (percentage improvement)
-            - Water Usage (percentage improvement)
-            - Energy Efficiency (percentage improvement)
-            - Recyclability (percentage improvement)
+            Based on the ingredients list provided, suggest a more sustainable alternative product that uses similar but more environmentally friendly ingredients. Be VERY CAREFUL to format your response as valid JSON without any errors, trailing commas, or other syntax issues.
             
-            Format your response as JSON with the following structure:
+            Format your response EXACTLY using the following structure:
             {
               "original": {
                 "name": "Product Name",
                 "brand": "Brand Name",
                 "price": "$XX.XX",
-                "image": "URL",
+                "image": "https://images.unsplash.com/photo-1580428456289-31892e500545",
                 "sustainabilityScore": XX,
-                "category": "Category"
+                "ingredients": ["ingredient1", "ingredient2", "..."]
               },
               "alternatives": [
                 {
@@ -250,10 +274,9 @@ serve(async (req) => {
                   "brand": "Alternative Brand",
                   "price": "$XX.XX",
                   "sustainabilityScore": XX,
-                  "image": "URL",
-                  "category": "Category"
-                },
-                ...
+                  "image": "https://images.unsplash.com/photo-1580428456289-31892e500545",
+                  "ingredients": ["eco-ingredient1", "eco-ingredient2", "..."]
+                }
               ],
               "comparison": {
                 "carbonFootprint": {
@@ -277,7 +300,13 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Based on this product information, please suggest more sustainable alternatives and provide comparison metrics including real image URLs from unsplash.com. IMPORTANT: Make sure your response is valid JSON format with no trailing commas or other syntax errors. Only respond with properly formatted JSON:\n\n${productInfo}`
+            content: `Based on this product information and its ingredients list: ${JSON.stringify(ingredientsList)}, 
+            
+            Please suggest a more sustainable alternative product with similar ingredients but better environmental metrics. Keep in mind that the alternative should serve the same purpose and offer similar benefits.
+            
+            The full product analysis is: ${productInfo}
+            
+            ONLY respond with properly formatted JSON according to the structure provided. Do not include any text outside of the JSON object. Check carefully for any JSON syntax errors before submitting your response.`
           }
         ],
         max_tokens: 1536,
@@ -300,47 +329,15 @@ serve(async (req) => {
     const alternativesInfo = alternativesData.choices[0].message.content;
     console.log('Alternatives analysis raw response:', alternativesInfo);
 
-    // Try to parse the alternatives as JSON
-    let alternativesJson;
-    try {
-      // Log the complete response content before attempting to parse it
-      console.log('Raw alternatives content to parse:', alternativesInfo);
-      
-      // Use the safer JSON parsing helper function
-      alternativesJson = safeJsonParse(alternativesInfo);
-      console.log('Successfully parsed alternatives JSON');
-    } catch (error) {
-      console.error('Error handling alternatives JSON:', error);
-      console.log('Using fallback alternatives data');
-      
-      // Use a fallback structure if all parsing attempts fail
-      alternativesJson = {
-        original: {
-          name: "Standard Product",
-          brand: "Generic Brand",
-          price: "$10.99",
-          sustainabilityScore: 40,
-          category: "Unknown",
-          image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
-        },
-        alternatives: [
-          {
-            name: "Eco-friendly Alternative",
-            brand: "Green Brand",
-            price: "$15.99",
-            sustainabilityScore: 85,
-            category: "Unknown",
-            image: "https://images.unsplash.com/photo-1580428456289-31892e500545"
-          }
-        ],
-        comparison: {
-          carbonFootprint: { original: 40, alternative: 85 },
-          waterUsage: { original: 45, alternative: 88 },
-          energyEfficiency: { original: 50, alternative: 90 },
-          recyclability: { original: 30, alternative: 95 }
-        }
-      };
-    }
+    // Parse the alternatives as JSON using our safe parser
+    let alternativesJson = safeJsonParse(alternativesInfo);
+    console.log('Successfully parsed alternatives JSON:', alternativesJson);
+    
+    // Add unique IDs to each product for referencing
+    alternativesJson.original.id = "original";
+    alternativesJson.alternatives.forEach((alt, index) => {
+      alt.id = `alternative-${index + 1}`;
+    });
 
     // Return both product info and alternatives
     return new Response(JSON.stringify({ 

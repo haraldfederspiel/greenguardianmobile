@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -19,7 +18,6 @@ const CameraPage: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
-        // Reset product info when a new image is uploaded
         setProductInfo(null);
       };
       reader.readAsDataURL(file);
@@ -54,7 +52,6 @@ const CameraPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      // Call the Supabase Edge Function to analyze the image with Groq API
       const { data, error } = await supabase.functions.invoke('analyze-product', {
         body: { image: capturedImage },
       });
@@ -79,7 +76,7 @@ const CameraPage: React.FC = () => {
       console.error('Error analyzing product:', error);
       toast({
         title: "Analysis failed",
-        description: "There was an error analyzing the product. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error analyzing the product. Please try again.",
         variant: "destructive",
       });
     } finally {

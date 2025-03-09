@@ -33,10 +33,9 @@ serve(async (req) => {
       ? image 
       : `data:image/jpeg;base64,${image}`;
     
-    console.log('Sending image to Groq for analysis...');
+    console.log('Sending request to Groq for analysis...');
     
-    // The error is in the message format - Groq expects different format
-    // Fixed request format for Groq API
+    // Using Groq's multimodal capabilities with image URL
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -52,8 +51,18 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            // Fix: Using a plain string instead of an array of objects for content
-            content: `Please analyze this product image and extract all text information. Focus on the product name, ingredients list, and any sustainability claims or certifications. The image is provided as a base64 string: ${formattedImage}`
+            content: [
+              { 
+                type: 'text', 
+                text: 'Please analyze this product image and extract all text information. Focus on the product name, ingredients list, and any sustainability claims or certifications.' 
+              },
+              { 
+                type: 'image_url', 
+                image_url: { 
+                  url: formattedImage 
+                } 
+              }
+            ]
           }
         ],
         max_tokens: 1024,

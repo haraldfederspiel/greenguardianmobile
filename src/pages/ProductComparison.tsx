@@ -7,12 +7,12 @@ import { Product } from '../components/ProductCard';
 import { useToast } from '@/components/ui/use-toast';
 import { LucideIcon } from 'lucide-react';
 
-// Sample data
+// Sample data with updated image URLs
 const originalProduct: Product = {
   id: '1',
   name: 'Standard Water Bottle',
   brand: 'AquaBasic',
-  image: '/placeholder.svg',
+  image: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGxhc3RpYyUyMHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
   price: '$14.99',
   sustainabilityScore: 42,
   category: 'Drinkware'
@@ -23,7 +23,7 @@ const alternativeProducts: Product[] = [
     id: '1a',
     name: 'Eco-friendly Water Bottle',
     brand: 'GreenLife',
-    image: '/placeholder.svg',
+    image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
     price: '$24.99',
     sustainabilityScore: 92,
     category: 'Drinkware'
@@ -32,7 +32,7 @@ const alternativeProducts: Product[] = [
     id: '1b',
     name: 'Recycled Plastic Bottle',
     brand: 'EcoFlow',
-    image: '/placeholder.svg',
+    image: 'https://images.unsplash.com/photo-1556401615-c909c3531b0d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
     price: '$19.99',
     sustainabilityScore: 78,
     category: 'Drinkware'

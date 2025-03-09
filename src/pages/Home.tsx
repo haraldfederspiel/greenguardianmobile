@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import ProductCard, { Product } from '../components/ProductCard';
 import { Leaf } from 'lucide-react';
 
-// Sample product data
+// Sample product data with fixed image paths
 const sampleProducts: Product[] = [{
   id: '1',
   name: 'Eco-friendly Water Bottle',
   brand: 'GreenLife',
-  image: '/placeholder.svg',
+  image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTV8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
   price: '$24.99',
   sustainabilityScore: 92,
   tags: ['reusable', 'BPA-free']
@@ -15,7 +15,7 @@ const sampleProducts: Product[] = [{
   id: '2',
   name: 'Organic Cotton T-shirt',
   brand: 'EcoWear',
-  image: '/placeholder.svg',
+  image: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8dHNoaXJ0fGVufDB8fDB8fHww',
   price: '$29.99',
   sustainabilityScore: 85,
   tags: ['organic', 'fair-trade']
@@ -23,7 +23,7 @@ const sampleProducts: Product[] = [{
   id: '3',
   name: 'Bamboo Toothbrush',
   brand: 'EcoSmile',
-  image: '/placeholder.svg',
+  image: 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmFtYm9vJTIwdG9vdGhicnVzaHxlbnwwfHwwfHx8MA%3D%3D',
   price: '$5.99',
   sustainabilityScore: 90,
   tags: ['biodegradable', 'plastic-free']
@@ -31,11 +31,12 @@ const sampleProducts: Product[] = [{
   id: '4',
   name: 'Recycled Paper Notebook',
   brand: 'GreenNotes',
-  image: '/placeholder.svg',
+  image: 'https://images.unsplash.com/photo-1531346680769-a1d79b57de5c?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bm90ZWJvb2t8ZW58MHx8MHx8fDA%3D',
   price: '$12.99',
   sustainabilityScore: 78,
   tags: ['recycled', 'tree-free']
 }];
+
 const Home: React.FC = () => {
   const [recentProducts] = useState<Product[]>(sampleProducts);
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -68,6 +69,12 @@ const CameraPage: React.FC = () => {
                 src={capturedImage} 
                 alt="Captured product" 
                 className="w-full object-cover"
+                onError={(e) => {
+                  console.error('Image failed to load:', e);
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null; // Prevent infinite loop
+                  target.src = 'https://images.unsplash.com/photo-1580428456289-31892e500545?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'; // Fallback image
+                }}
               />
             </div>
             <button 
@@ -137,7 +144,7 @@ const CameraPage: React.FC = () => {
       <input 
         type="file" 
         accept="image/*" 
-        capture="user"
+        capture="environment"
         ref={cameraInputRef} 
         onChange={handleFileUpload} 
         className="hidden" 

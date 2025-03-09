@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import ProductCard, { Product } from '../components/ProductCard';
 import { Leaf } from 'lucide-react';
+import Logo from '../components/Logo';
 
 // Sample product data with fixed image paths
 const sampleProducts: Product[] = [{
@@ -44,7 +46,10 @@ const Home: React.FC = () => {
   const totalCarbonSaved = recentProducts.reduce((total, product) => total + product.sustainabilityScore / 100 * 2.5, 0).toFixed(2);
   return <div className="animate-fade-in">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-center">GreenGuardian</h1>
+        <div className="flex items-center justify-center gap-2">
+          <Logo size={36} />
+          <h1 className="text-2xl font-bold text-center">GreenGuardian</h1>
+        </div>
         <p className="text-neutral-500 text-center">Your sustainable shopping assistant</p>
       </header>
       

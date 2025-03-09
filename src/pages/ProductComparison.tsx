@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Droplet, Leaf, Recycle, Zap } from 'lucide-react';
 import SustainabilityScore from '../components/SustainabilityScore';
 import { Product } from '../components/ProductCard';
 import { useToast } from '@/components/ui/use-toast';
+import { LucideIcon } from 'lucide-react';
 
 // Sample data
 const originalProduct: Product = {
@@ -40,7 +41,7 @@ const alternativeProducts: Product[] = [
 
 interface ComparisonMetric {
   name: string;
-  icon: React.FC<{ size?: number, className?: string }>;
+  icon: LucideIcon;
   original: number; // Percentage (0-100)
   alternative: number;
   label: string;

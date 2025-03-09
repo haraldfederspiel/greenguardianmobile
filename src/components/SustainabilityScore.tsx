@@ -12,12 +12,15 @@ const SustainabilityScore: React.FC<SustainabilityScoreProps> = ({
   size = 'md', 
   showLabel = true 
 }) => {
+  // Handle NaN or invalid scores
+  const validScore = (!isNaN(score) && score !== null) ? score : 0;
+  
   // Determine the color based on score
   const getColor = () => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-green-400';
-    if (score >= 40) return 'bg-yellow-500';
-    if (score >= 20) return 'bg-orange-500';
+    if (validScore >= 80) return 'bg-green-500';
+    if (validScore >= 60) return 'bg-green-400';
+    if (validScore >= 40) return 'bg-yellow-500';
+    if (validScore >= 20) return 'bg-orange-500';
     return 'bg-red-500';
   };
   
@@ -31,6 +34,7 @@ const SustainabilityScore: React.FC<SustainabilityScoreProps> = ({
   };
   
   const sizeClasses = getSizeClasses();
+  const opacity = validScore / 100;
   
   return (
     <div className="flex flex-col items-center">
@@ -39,19 +43,19 @@ const SustainabilityScore: React.FC<SustainabilityScoreProps> = ({
           className={`absolute inset-0.5 rounded-full ${getColor()} transition-all duration-500 ease-out`}
           style={{ 
             clipPath: `inset(0 0 0 0 round 9999px)`,
-            opacity: score / 100 
+            opacity: isNaN(opacity) ? 0 : opacity
           }}
         />
         <span className={`relative font-bold ${sizeClasses.text} text-neutral-800`}>
-          {score}
+          {validScore}
         </span>
       </div>
       {showLabel && (
         <span className="text-xs mt-1 text-neutral-500">
-          {score >= 80 ? 'Excellent' : 
-           score >= 60 ? 'Good' : 
-           score >= 40 ? 'Average' : 
-           score >= 20 ? 'Poor' : 'Bad'}
+          {validScore >= 80 ? 'Excellent' : 
+           validScore >= 60 ? 'Good' : 
+           validScore >= 40 ? 'Average' : 
+           validScore >= 20 ? 'Poor' : 'Bad'}
         </span>
       )}
     </div>

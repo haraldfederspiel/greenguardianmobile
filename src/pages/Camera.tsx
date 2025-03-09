@@ -1,13 +1,24 @@
+
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, X } from 'lucide-react';
+import { Camera, Upload, X, Copy, Share2, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import Logo from '../components/Logo';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from '@/components/ui/button';
 
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [productInfo, setProductInfo] = useState<string | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -46,6 +57,50 @@ const CameraPage: React.FC = () => {
     }
   };
 
+  const copyToClipboard = () => {
+    if (productInfo) {
+      navigator.clipboard.writeText(productInfo)
+        .then(() => {
+          toast({
+            title: "Copied to clipboard",
+            description: "Product information copied to clipboard",
+          });
+        })
+        .catch(err => {
+          console.error('Failed to copy:', err);
+          toast({
+            title: "Failed to copy",
+            description: "Could not copy to clipboard",
+            variant: "destructive",
+          });
+        });
+    }
+  };
+
+  const shareProductInfo = async () => {
+    if (productInfo && navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Product Analysis',
+          text: productInfo,
+        });
+        toast({
+          title: "Shared successfully",
+          description: "Product information has been shared",
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+        toast({
+          title: "Sharing failed",
+          description: "Could not share product information",
+          variant: "destructive",
+        });
+      }
+    } else {
+      copyToClipboard();
+    }
+  };
+
   const analyzeProduct = async () => {
     if (!capturedImage) return;
     
@@ -67,10 +122,11 @@ const CameraPage: React.FC = () => {
       }
       
       setProductInfo(data.result);
+      setShowResultModal(true);
       
       toast({
         title: "Product analyzed",
-        description: "OCR processing complete. View product information below.",
+        description: "OCR processing complete. View product information in the modal.",
       });
     } catch (error) {
       console.error('Error analyzing product:', error);
@@ -128,15 +184,6 @@ const CameraPage: React.FC = () => {
           </div>
         )}
 
-        {productInfo && (
-          <div className="mt-6 p-4 bg-green-50 rounded-xl w-full max-w-xs">
-            <h3 className="font-medium text-green-800 mb-2">Product Information</h3>
-            <div className="text-sm text-green-700 whitespace-pre-line">
-              {productInfo}
-            </div>
-          </div>
-        )}
-
         <div className="mt-8 flex flex-col w-full max-w-xs space-y-4">
           {capturedImage ? (
             <button 
@@ -191,6 +238,61 @@ const CameraPage: React.FC = () => {
         onChange={handleFileUpload} 
         className="hidden" 
       />
+
+      {/* Product Analysis Result Modal */}
+      <Dialog open={showResultModal} onOpenChange={setShowResultModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Info className="mr-2 h-5 w-5 text-green-600" />
+              Product Analysis Results
+            </DialogTitle>
+            <DialogDescription>
+              Detailed information about your product
+            </DialogDescription>
+          </DialogHeader>
+          
+          {productInfo && (
+            <div className="mt-2 p-4 bg-green-50 rounded-lg">
+              <div className="text-sm text-green-800 whitespace-pre-line">
+                {productInfo}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="sm:justify-start flex flex-row gap-2 mt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center" 
+              onClick={copyToClipboard}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center" 
+              onClick={shareProductInfo}
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+            <Button 
+              type="button" 
+              variant="default" 
+              size="sm" 
+              className="ml-auto" 
+              onClick={() => setShowResultModal(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

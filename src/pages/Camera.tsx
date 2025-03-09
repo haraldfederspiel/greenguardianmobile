@@ -1,29 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, X, Copy, Share2, Info } from 'lucide-react';
+import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from '@/components/ui/button';
 
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [productInfo, setProductInfo] = useState<string | null>(null);
-  const [alternatives, setAlternatives] = useState<any>(null);
-  const [showResultModal, setShowResultModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -32,7 +19,6 @@ const CameraPage: React.FC = () => {
       reader.onloadend = () => {
         setCapturedImage(reader.result as string);
         setProductInfo(null);
-        setAlternatives(null);
       };
       reader.readAsDataURL(file);
     }
@@ -52,56 +38,11 @@ const CameraPage: React.FC = () => {
   const clearImage = () => {
     setCapturedImage(null);
     setProductInfo(null);
-    setAlternatives(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
     if (cameraInputRef.current) {
       cameraInputRef.current.value = '';
-    }
-  };
-
-  const copyToClipboard = () => {
-    if (productInfo) {
-      navigator.clipboard.writeText(productInfo)
-        .then(() => {
-          toast({
-            title: "Copied to clipboard",
-            description: "Product information copied to clipboard",
-          });
-        })
-        .catch(err => {
-          console.error('Failed to copy:', err);
-          toast({
-            title: "Failed to copy",
-            description: "Could not copy to clipboard",
-            variant: "destructive",
-          });
-        });
-    }
-  };
-
-  const shareProductInfo = async () => {
-    if (productInfo && navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Product Analysis',
-          text: productInfo,
-        });
-        toast({
-          title: "Shared successfully",
-          description: "Product information has been shared",
-        });
-      } catch (error) {
-        console.error('Error sharing:', error);
-        toast({
-          title: "Sharing failed",
-          description: "Could not share product information",
-          variant: "destructive",
-        });
-      }
-    } else {
-      copyToClipboard();
     }
   };
 
@@ -111,7 +52,6 @@ const CameraPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      console.log('Sending image to analyze-product function...');
       const { data, error } = await supabase.functions.invoke('analyze-product', {
         body: { image: capturedImage },
       });
@@ -121,8 +61,6 @@ const CameraPage: React.FC = () => {
         throw new Error('Failed to analyze image');
       }
       
-      console.log('Received response from analyze-product:', data);
-      
       if (!data || !data.result) {
         console.error('Invalid response format:', data);
         throw new Error('Invalid response from analysis service');
@@ -130,73 +68,9 @@ const CameraPage: React.FC = () => {
       
       setProductInfo(data.result);
       
-      if (data.alternatives) {
-        console.log('Setting alternatives data:', data.alternatives);
-        setAlternatives(data.alternatives);
-        
-        // Store in localStorage with proper validation and error handling
-        try {
-          // Log the raw data for debugging
-          console.info('Raw stored data:', JSON.stringify(data.alternatives));
-          
-          // Store the data in localStorage
-          localStorage.setItem('productComparison', JSON.stringify(data.alternatives));
-          console.info('States updated with comparison data');
-        } catch (storageError) {
-          console.error('Error storing data in localStorage:', storageError);
-          // If the full data is too large, try storing just essential info
-          try {
-            const essentialData = {
-              original: {
-                id: data.alternatives.original.id || 'original',
-                name: data.alternatives.original.name,
-                brand: data.alternatives.original.brand,
-                price: data.alternatives.original.price,
-                sustainabilityScore: data.alternatives.original.sustainabilityScore,
-                image: data.alternatives.original.image
-              },
-              alternatives: data.alternatives.alternatives?.slice(0, 1).map(alt => ({
-                id: alt.id || 'alternative-1',
-                name: alt.name,
-                brand: alt.brand,
-                price: alt.price,
-                sustainabilityScore: alt.sustainabilityScore,
-                image: alt.image
-              })),
-              comparison: {
-                carbonFootprint: {
-                  original: data.alternatives.comparison.carbonFootprint.original,
-                  alternative: data.alternatives.comparison.carbonFootprint.alternative
-                },
-                waterUsage: {
-                  original: data.alternatives.comparison.waterUsage.original,
-                  alternative: data.alternatives.comparison.waterUsage.alternative
-                },
-                energyEfficiency: {
-                  original: data.alternatives.comparison.energyEfficiency.original,
-                  alternative: data.alternatives.comparison.energyEfficiency.alternative
-                },
-                recyclability: {
-                  original: data.alternatives.comparison.recyclability.original,
-                  alternative: data.alternatives.comparison.recyclability.alternative
-                }
-              }
-            };
-            localStorage.setItem('productComparison', JSON.stringify(essentialData));
-            console.log('Stored simplified data in localStorage');
-          } catch (fallbackError) {
-            console.error('Failed to store even simplified data:', fallbackError);
-          }
-        }
-      } else {
-        console.warn('No alternatives data received from analysis');
-      }
-      
-      setShowResultModal(true);
-      
       toast({
         title: "Product analyzed",
-        description: "Analysis complete. View product information and sustainable alternatives.",
+        description: "OCR processing complete. View product information below.",
       });
     } catch (error) {
       console.error('Error analyzing product:', error);
@@ -208,19 +82,6 @@ const CameraPage: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const viewAlternatives = () => {
-    if (alternatives) {
-      navigate('/compare/1');
-    } else {
-      toast({
-        description: "No sustainable alternatives were found for this product.",
-        variant: "destructive",
-      });
-      navigate('/compare/1');
-    }
-    setShowResultModal(false);
   };
 
   return (
@@ -264,6 +125,15 @@ const CameraPage: React.FC = () => {
             <p className="text-neutral-600 text-center mb-6">
               Take a photo of a product<br />to analyze its sustainability
             </p>
+          </div>
+        )}
+
+        {productInfo && (
+          <div className="mt-6 p-4 bg-green-50 rounded-xl w-full max-w-xs">
+            <h3 className="font-medium text-green-800 mb-2">Product Information</h3>
+            <div className="text-sm text-green-700 whitespace-pre-line">
+              {productInfo}
+            </div>
           </div>
         )}
 
@@ -321,74 +191,6 @@ const CameraPage: React.FC = () => {
         onChange={handleFileUpload} 
         className="hidden" 
       />
-
-      <Dialog open={showResultModal} onOpenChange={setShowResultModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <Info className="mr-2 h-5 w-5 text-green-600" />
-              Product Analysis Results
-            </DialogTitle>
-            <DialogDescription>
-              Detailed information about your product
-            </DialogDescription>
-          </DialogHeader>
-          
-          {productInfo && (
-            <div className="mt-2 p-4 bg-green-50 rounded-lg">
-              <div className="text-sm text-green-800 whitespace-pre-line">
-                {productInfo}
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="sm:justify-start flex flex-col gap-4 mt-4">
-            <div className="flex flex-row gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center" 
-                onClick={copyToClipboard}
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Copy
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center" 
-                onClick={shareProductInfo}
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-            </div>
-            
-            <div className="flex flex-row w-full gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="flex-1" 
-                onClick={() => setShowResultModal(false)}
-              >
-                Close
-              </Button>
-              <Button 
-                type="button" 
-                variant="default" 
-                size="sm" 
-                className="flex-1 bg-green-500 hover:bg-green-600" 
-                onClick={viewAlternatives}
-              >
-                View Sustainable Alternatives
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

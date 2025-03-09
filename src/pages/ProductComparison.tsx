@@ -2,15 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Droplet, Leaf, Recycle, Zap } from 'lucide-react';
-import { LucideIcon } from 'lucide-react';
 import SustainabilityScore from '../components/SustainabilityScore';
 import { Product } from '../components/ProductCard';
 import { useToast } from '@/components/ui/use-toast';
-import SustainableAlternative from '../components/SustainableAlternative';
-import ComparisonMetric from '../components/ComparisonMetric';
+import { LucideIcon } from 'lucide-react';
 
-// Default sample data as fallback
-const defaultOriginalProduct: Product = {
+// Sample data with updated image URLs
+const originalProduct: Product = {
   id: '1',
   name: 'Standard Water Bottle',
   brand: 'AquaBasic',
@@ -20,7 +18,7 @@ const defaultOriginalProduct: Product = {
   category: 'Drinkware'
 };
 
-const defaultAlternativeProducts: Product[] = [
+const alternativeProducts: Product[] = [
   {
     id: '1a',
     name: 'Eco-friendly Water Bottle',
@@ -29,55 +27,24 @@ const defaultAlternativeProducts: Product[] = [
     price: '$24.99',
     sustainabilityScore: 92,
     category: 'Drinkware'
+  },
+  {
+    id: '1b',
+    name: 'Recycled Plastic Bottle',
+    brand: 'EcoFlow',
+    image: 'https://images.unsplash.com/photo-1556401615-c909c3531b0d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
+    price: '$19.99',
+    sustainabilityScore: 78,
+    category: 'Drinkware'
   }
 ];
 
-// Image placeholder for products without images
-const getImagePlaceholder = (category: string) => {
-  const placeholders: Record<string, string> = {
-    'Drinkware': 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGxhc3RpYyUyMHdhdGVyJTIwYm90dGxlfGVufDB8fDB8fHww',
-    'Food': 'https://images.unsplash.com/photo-1506617564039-2f3b650b7010?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8Z3JvY2VyaWVzfGVufDB8fDB8fHww',
-    'Cleaning': 'https://images.unsplash.com/photo-1563453392212-326f5e854473?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8Y2xlYW5pbmclMjBwcm9kdWN0c3xlbnwwfHwwfHx8MA%3D%3D',
-    'Cosmetics': 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8Y29zbWV0aWNzfGVufDB8fDB8fHww',
-    default: 'https://images.unsplash.com/photo-1580428456289-31892e500545?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-  };
-  
-  return placeholders[category] || placeholders.default;
-};
-
-interface ComparisonMetricType {
+interface ComparisonMetric {
   name: string;
   icon: LucideIcon;
-  original: number;
+  original: number; // Percentage (0-100)
   alternative: number;
   label: string;
-}
-
-interface ComparisonData {
-  original: {
-    name: string;
-    brand: string;
-    price: string;
-    image?: string;
-    sustainabilityScore: number;
-    category?: string;
-    id?: string;
-  };
-  alternatives: Array<{
-    name: string;
-    brand: string;
-    price: string;
-    image?: string;
-    sustainabilityScore: number;
-    category?: string;
-    id?: string;
-  }>;
-  comparison: {
-    carbonFootprint: { original: number; alternative: number; };
-    waterUsage: { original: number; alternative: number; };
-    energyEfficiency: { original: number; alternative: number; };
-    recyclability: { original: number; alternative: number; };
-  };
 }
 
 const ProductComparison: React.FC = () => {
@@ -85,11 +52,9 @@ const ProductComparison: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [product, setProduct] = useState<Product>(defaultOriginalProduct);
-  const [alternatives, setAlternatives] = useState<Product[]>(defaultAlternativeProducts);
+  const [product] = useState<Product>(originalProduct);
+  const [alternatives] = useState<Product[]>(alternativeProducts);
   const [selectedAlternative, setSelectedAlternative] = useState<Product | null>(null);
-  const [comparisonMetrics, setComparisonMetrics] = useState<ComparisonMetricType[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   // Set the first alternative as default
   useEffect(() => {
@@ -98,159 +63,37 @@ const ProductComparison: React.FC = () => {
     }
   }, [alternatives, selectedAlternative]);
   
-  // Load comparison data from localStorage
-  useEffect(() => {
-    const loadComparisonData = () => {
-      setIsLoading(true);
-      try {
-        const storedData = localStorage.getItem('productComparison');
-        console.log('Raw stored data:', storedData);
-        
-        if (storedData) {
-          try {
-            const parsedData: ComparisonData = JSON.parse(storedData);
-            console.log('Parsed comparison data:', parsedData);
-            
-            if (!parsedData.original || !parsedData.alternatives || !parsedData.comparison) {
-              console.error('Invalid data format:', parsedData);
-              throw new Error('Invalid data format');
-            }
-            
-            // Process the original product
-            const originalProduct: Product = {
-              id: parsedData.original.id || 'original',
-              name: parsedData.original.name || defaultOriginalProduct.name,
-              brand: parsedData.original.brand || defaultOriginalProduct.brand,
-              price: parsedData.original.price || '$14.99',
-              sustainabilityScore: parsedData.original.sustainabilityScore || 60,
-              category: parsedData.original.category || 'Food',
-              image: parsedData.original.image || getImagePlaceholder('Food')
-            };
-            
-            // Process the alternative products
-            const alternativeProducts: Product[] = parsedData.alternatives.map((alt, index) => ({
-              id: alt.id || `alt-${index}`,
-              name: alt.name || `Alternative ${index + 1}`,
-              brand: alt.brand || 'Eco Brand',
-              price: alt.price || '$24.99',
-              sustainabilityScore: alt.sustainabilityScore || 80,
-              category: alt.category || originalProduct.category,
-              image: alt.image || getImagePlaceholder(alt.category || 'default')
-            }));
-            
-            // Normalize comparison values to percentages (0-100)
-            const normalizeValue = (value: number): number => {
-              // If value is already in 0-100 range, return it
-              if (value >= 0 && value <= 100) return value;
-              // If value is a small number (like 0.x), multiply it by 100
-              if (value >= 0 && value < 1) return Math.round(value * 100);
-              // Default to a value between 0-100
-              return Math.min(100, Math.max(0, value));
-            };
-            
-            // Set up comparison metrics
-            const metrics: ComparisonMetricType[] = [
-              {
-                name: 'Carbon Footprint',
-                icon: Leaf,
-                original: normalizeValue(parsedData.comparison.carbonFootprint.original),
-                alternative: normalizeValue(parsedData.comparison.carbonFootprint.alternative),
-                label: 'percentage'
-              },
-              {
-                name: 'Water Usage',
-                icon: Droplet,
-                original: normalizeValue(parsedData.comparison.waterUsage.original),
-                alternative: normalizeValue(parsedData.comparison.waterUsage.alternative),
-                label: 'percentage'
-              },
-              {
-                name: 'Energy Efficiency',
-                icon: Zap,
-                original: normalizeValue(parsedData.comparison.energyEfficiency.original),
-                alternative: normalizeValue(parsedData.comparison.energyEfficiency.alternative),
-                label: 'percentage'
-              },
-              {
-                name: 'Recyclability',
-                icon: Recycle,
-                original: normalizeValue(parsedData.comparison.recyclability.original),
-                alternative: normalizeValue(parsedData.comparison.recyclability.alternative),
-                label: 'percentage'
-              }
-            ];
-            
-            // Update state with the parsed data
-            setProduct(originalProduct);
-            setAlternatives(alternativeProducts);
-            setComparisonMetrics(metrics);
-            console.log('States updated with comparison data');
-          } catch (parseError) {
-            console.error('Error parsing JSON:', parseError);
-            console.log('Invalid JSON string:', storedData);
-            toast({
-              title: "Error parsing data",
-              description: "Invalid comparison data format. Using default data.",
-              variant: "destructive",
-            });
-            // Use defaults
-            setDefaultMetrics();
-          }
-        } else {
-          console.log('No stored data found, using defaults');
-          // Set default comparison metrics if no stored data
-          setDefaultMetrics();
-        }
-      } catch (error) {
-        console.error('Error loading comparison data:', error);
-        toast({
-          title: "Error loading comparison",
-          description: "Could not load product comparison data. Using default data instead.",
-          variant: "destructive",
-        });
-        
-        // Set default comparison metrics on error
-        setDefaultMetrics();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    const setDefaultMetrics = () => {
-      setComparisonMetrics([
-        {
-          name: 'Carbon Footprint',
-          icon: Leaf,
-          original: 40,
-          alternative: 85,
-          label: 'percentage'
-        },
-        {
-          name: 'Water Usage',
-          icon: Droplet,
-          original: 45,
-          alternative: 88,
-          label: 'percentage'
-        },
-        {
-          name: 'Energy Efficiency',
-          icon: Zap,
-          original: 50,
-          alternative: 90,
-          label: 'percentage'
-        },
-        {
-          name: 'Recyclability',
-          icon: Recycle,
-          original: 30,
-          alternative: 95,
-          label: 'percentage'
-        }
-      ]);
-    };
-    
-    loadComparisonData();
-  }, [toast]);
+  // Comparison metrics
+  const comparisonMetrics: ComparisonMetric[] = [
+    {
+      name: 'Carbon Footprint',
+      icon: Leaf,
+      original: 40,
+      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 85 : 65) : 0,
+      label: 'kg CO2'
+    },
+    {
+      name: 'Water Usage',
+      icon: Droplet,
+      original: 45,
+      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 88 : 70) : 0,
+      label: 'liters'
+    },
+    {
+      name: 'Energy Efficiency',
+      icon: Zap,
+      original: 50,
+      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 90 : 75) : 0,
+      label: 'kWh'
+    },
+    {
+      name: 'Recyclability',
+      icon: Recycle,
+      original: 30,
+      alternative: selectedAlternative ? (selectedAlternative.sustainabilityScore > 80 ? 95 : 80) : 0,
+      label: 'percentage'
+    }
+  ];
   
   const handleChooseAlternative = () => {
     if (selectedAlternative) {
@@ -267,27 +110,8 @@ const ProductComparison: React.FC = () => {
     }
   };
   
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin h-10 w-10 border-4 border-green-500 border-t-transparent rounded-full"></div>
-        <p className="ml-3 text-neutral-600">Loading comparison...</p>
-      </div>
-    );
-  }
-  
   if (!selectedAlternative) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <p className="text-neutral-600 mb-4">No alternatives found.</p>
-        <button 
-          onClick={() => navigate('/')}
-          className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg"
-        >
-          Go back home
-        </button>
-      </div>
-    );
+    return <div>Loading comparison...</div>;
   }
   
   return (
@@ -318,11 +142,6 @@ const ProductComparison: React.FC = () => {
               src={product.image} 
               alt={product.name}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src = getImagePlaceholder('default');
-              }}
             />
           </div>
           <h4 className="font-medium text-sm truncate">{product.name}</h4>
@@ -346,11 +165,6 @@ const ProductComparison: React.FC = () => {
               src={selectedAlternative.image} 
               alt={selectedAlternative.name}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src = getImagePlaceholder('default');
-              }}
             />
           </div>
           <h4 className="font-medium text-sm truncate">{selectedAlternative.name}</h4>
@@ -365,17 +179,19 @@ const ProductComparison: React.FC = () => {
           <h3 className="text-sm font-medium mb-3">Alternative Options</h3>
           <div className="flex space-x-3 overflow-x-auto pb-2">
             {alternatives.map(alt => (
-              <SustainableAlternative
+              <button
                 key={alt.id}
-                id={alt.id}
-                name={alt.name}
-                brand={alt.brand}
-                price={alt.price}
-                image={alt.image}
-                score={alt.sustainabilityScore}
-                isSelected={selectedAlternative?.id === alt.id}
                 onClick={() => setSelectedAlternative(alt)}
-              />
+                className={`flex-shrink-0 rounded-lg overflow-hidden w-16 h-16 ${
+                  selectedAlternative?.id === alt.id ? 'ring-2 ring-green-500' : ''
+                }`}
+              >
+                <img 
+                  src={alt.image} 
+                  alt={alt.name}
+                  className="w-full h-full object-cover"
+                />
+              </button>
             ))}
           </div>
         </div>
@@ -386,14 +202,42 @@ const ProductComparison: React.FC = () => {
         <h3 className="text-sm font-medium mb-3">Sustainability Comparison</h3>
         <div className="space-y-4">
           {comparisonMetrics.map((metric, index) => (
-            <ComparisonMetric
-              key={index}
-              name={metric.name}
-              icon={metric.icon}
-              originalValue={metric.original}
-              alternativeValue={metric.alternative}
-              label={metric.label}
-            />
+            <div key={index} className="glass-card rounded-xl p-4">
+              <div className="flex items-center mb-2">
+                <div className="bg-green-100 rounded-full p-1.5 mr-2">
+                  <metric.icon size={16} className="text-green-600" />
+                </div>
+                <h4 className="text-sm font-medium">{metric.name}</h4>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-neutral-400 rounded-full"
+                      style={{ width: `${metric.original}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-neutral-500">Original</span>
+                    <span className="text-xs font-medium">{metric.original}%</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full"
+                      style={{ width: `${metric.alternative}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-neutral-500">Alternative</span>
+                    <span className="text-xs font-medium">{metric.alternative}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>

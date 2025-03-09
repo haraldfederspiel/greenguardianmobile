@@ -33,94 +33,6 @@ const dataURItoBlob = (dataURI: string) => {
   };
 };
 
-// Helper function to safely parse JSON with error handling
-const safeJsonParse = (jsonString: string) => {
-  try {
-    // Try to parse the JSON string directly
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.error('Initial JSON parsing error:', error);
-    
-    try {
-      // Try to extract valid JSON using regex
-      const jsonRegex = /\{[\s\S]*\}/;
-      const match = jsonString.match(jsonRegex);
-      
-      if (match) {
-        // Clean the extracted JSON string
-        let cleanJson = match[0]
-          // Replace trailing commas before closing brackets
-          .replace(/,\s*([\]}])/g, '$1')
-          // Fix quotes in nested JSON
-          .replace(/([^\\])"/g, '$1\\"')
-          .replace(/\\\\"/g, '\\"')
-          // Ensure proper quotes around property names
-          .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3');
-          
-        return JSON.parse(cleanJson);
-      }
-    } catch (extractError) {
-      console.error('Error extracting JSON:', extractError);
-    }
-    
-    // If all parsing attempts fail, return a fallback structure
-    console.log('Using fallback JSON structure');
-    return {
-      original: {
-        name: "Product Name (Default)",
-        brand: "Brand Name",
-        price: "$10.99",
-        sustainabilityScore: 40,
-        image: "https://images.unsplash.com/photo-1580428456289-31892e500545",
-        ingredients: ["ingredient 1", "ingredient 2", "ingredient 3"]
-      },
-      alternatives: [
-        {
-          name: "Eco-friendly Alternative",
-          brand: "Green Brand",
-          price: "$15.99",
-          sustainabilityScore: 85,
-          image: "https://images.unsplash.com/photo-1580428456289-31892e500545",
-          ingredients: ["eco ingredient 1", "eco ingredient 2", "eco ingredient 3"]
-        }
-      ],
-      comparison: {
-        carbonFootprint: { original: 40, alternative: 85 },
-        waterUsage: { original: 45, alternative: 88 },
-        energyEfficiency: { original: 50, alternative: 90 },
-        recyclability: { original: 30, alternative: 95 }
-      }
-    };
-  }
-};
-
-// Extract ingredients from text
-const extractIngredients = (text: string): string[] => {
-  // Look for ingredients list in the text
-  const ingredientsRegex = /ingredients:?.*?:(.*?)(?:\n\n|\n[A-Z]|$)/si;
-  const match = text.match(ingredientsRegex);
-  
-  if (match && match[1]) {
-    // Split by common ingredient separators and clean up
-    return match[1]
-      .split(/[,•*\n-]/)
-      .map(i => i.trim())
-      .filter(i => i.length > 0 && !i.match(/^\d+%$/) && !i.match(/^contains/i));
-  }
-  
-  // If no structured list found, try to extract from the whole text
-  const allWords = text.split(/[\s,\n-]+/);
-  const possibleIngredients = allWords
-    .filter(word => 
-      word.length > 3 && 
-      !word.match(/^\d/) && 
-      !["the", "and", "with", "from", "contains", "may", "product"].includes(word.toLowerCase())
-    )
-    .slice(0, 10); // Limit to 10 potential ingredients
-  
-  return possibleIngredients;
-};
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -158,22 +70,7 @@ serve(async (req) => {
     const formattedImage = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
     const { blob, contentType } = dataURItoBlob(formattedImage);
     
-    // Create storage bucket if it doesn't exist
-    try {
-      const { data: buckets } = await supabase.storage.listBuckets();
-      if (!buckets?.find(bucket => bucket.name === 'aiforgood')) {
-        console.log('Creating aiforgood bucket...');
-        await supabase.storage.createBucket('aiforgood', {
-          public: true,
-          fileSizeLimit: 10485760 // 10MB
-        });
-      }
-    } catch (error) {
-      console.error('Error checking/creating bucket:', error);
-      // Continue anyway, might already exist
-    }
-    
-    // Upload the image to Supabase Storage
+    // Upload the image to Supabase Storage - changed bucket from 'product-images' to 'aiforgood'
     console.log('Uploading image to Supabase Storage bucket: aiforgood...');
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('aiforgood')
@@ -195,10 +92,10 @@ serve(async (req) => {
     const imageUrl = publicURLData.publicUrl;
     console.log('Image uploaded successfully, public URL:', imageUrl);
     
-    // First, analyze the product from the image
-    console.log('Sending URL to Groq for product analysis...');
+    // Send request to Groq with the image URL
+    console.log('Sending URL to Groq for analysis...');
     
-    const analyzeResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GROQ_API_KEY}`,
@@ -220,174 +117,23 @@ serve(async (req) => {
       }),
     });
 
-    if (!analyzeResponse.ok) {
-      const errorData = await analyzeResponse.json();
+    if (!response.ok) {
+      const errorData = await response.json();
       console.error('Groq API error response:', errorData);
-      throw new Error(`Groq API error: ${errorData.error?.message || `HTTP status ${analyzeResponse.status}`}`);
+      throw new Error(`Groq API error: ${errorData.error?.message || `HTTP status ${response.status}`}`);
     }
     
-    const analyzeData = await analyzeResponse.json();
+    const data = await response.json();
     
-    if (!analyzeData || !analyzeData.choices || !analyzeData.choices[0] || !analyzeData.choices[0].message) {
-      console.error('Unexpected response format from Groq:', analyzeData);
+    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected response format from Groq:', data);
       throw new Error('Invalid response format from Groq API');
     }
     
-    const productInfo = analyzeData.choices[0].message.content;
-    console.log('Product analysis completed successfully');
-    
-    // Extract product name and brand from the product info text
-    let productName = "Unknown Product";
-    let brandName = "Unknown Brand";
-    let productPrice = "$10.99";
-    
-    // Try to extract product name
-    const nameMatch = productInfo.match(/Product Name:?\s*([^\n]+)/i) || 
-                     productInfo.match(/Name:?\s*([^\n]+)/i);
-    if (nameMatch && nameMatch[1]) {
-      productName = nameMatch[1].trim();
-    }
-    
-    // Try to extract brand
-    const brandMatch = productInfo.match(/Brand:?\s*([^\n]+)/i);
-    if (brandMatch && brandMatch[1]) {
-      brandName = brandMatch[1].trim();
-    }
-    
-    // Try to extract price
-    const priceMatch = productInfo.match(/Price:?\s*([^\n]+)/i) || 
-                      productInfo.match(/\$\d+\.\d+/);
-    if (priceMatch && priceMatch[1]) {
-      productPrice = priceMatch[1].trim();
-    } else if (priceMatch) {
-      productPrice = priceMatch[0];
-    }
-    
-    // Extract ingredients list from the product info text
-    const ingredientsList = extractIngredients(productInfo);
-    console.log('Extracted ingredients:', ingredientsList);
+    const result = data.choices[0].message.content;
+    console.log('Analysis completed successfully');
 
-    // Now, use the product info and ingredients to find sustainable alternatives
-    console.log('Finding sustainable alternatives...');
-    
-    const alternativesResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama3-70b-8192',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a sustainability expert who helps users find eco-friendly alternatives to products.
-            
-            Based on the ingredients list provided, suggest a more sustainable alternative product that uses similar but more environmentally friendly ingredients. Be VERY CAREFUL to format your response as valid JSON without any errors, trailing commas, or other syntax issues.
-            
-            Format your response EXACTLY using the following structure:
-            {
-              "original": {
-                "name": "${productName}",
-                "brand": "${brandName}",
-                "price": "${productPrice}",
-                "image": "${imageUrl}",
-                "sustainabilityScore": 60,
-                "ingredients": ${JSON.stringify(ingredientsList)}
-              },
-              "alternatives": [
-                {
-                  "name": "Alternative Product Name",
-                  "brand": "Alternative Brand",
-                  "price": "$XX.XX",
-                  "sustainabilityScore": 85,
-                  "image": "https://images.unsplash.com/photo-1580428456289-31892e500545",
-                  "ingredients": ["eco-ingredient1", "eco-ingredient2", "..."]
-                }
-              ],
-              "comparison": {
-                "carbonFootprint": {
-                  "original": 40,
-                  "alternative": 85
-                },
-                "waterUsage": {
-                  "original": 45,
-                  "alternative": 88
-                },
-                "energyEfficiency": {
-                  "original": 50,
-                  "alternative": 90
-                },
-                "recyclability": {
-                  "original": 30,
-                  "alternative": 95
-                }
-              }
-            }`
-          },
-          {
-            role: 'user',
-            content: `Based on this product information: "${productName}" by "${brandName}" with ingredients ${JSON.stringify(ingredientsList)}, 
-            
-            Please suggest a more sustainable alternative product with similar ingredients but better environmental metrics. Keep in mind that the alternative should serve the same purpose and offer similar benefits.
-            
-            The full product analysis is: ${productInfo}
-            
-            ONLY respond with properly formatted JSON according to the structure provided. Do not include any text outside of the JSON object. Check carefully for any JSON syntax errors before submitting your response.`
-          }
-        ],
-        max_tokens: 1536,
-      }),
-    });
-
-    if (!alternativesResponse.ok) {
-      const errorData = await alternativesResponse.json();
-      console.error('Groq API error response for alternatives:', errorData);
-      throw new Error(`Groq API error for alternatives: ${errorData.error?.message || `HTTP status ${alternativesResponse.status}`}`);
-    }
-    
-    const alternativesData = await alternativesResponse.json();
-    
-    if (!alternativesData || !alternativesData.choices || !alternativesData.choices[0] || !alternativesData.choices[0].message) {
-      console.error('Unexpected response format from Groq for alternatives:', alternativesData);
-      throw new Error('Invalid response format from Groq API for alternatives');
-    }
-    
-    const alternativesInfo = alternativesData.choices[0].message.content;
-    console.log('Alternatives analysis raw response:', alternativesInfo);
-
-    // Parse the alternatives as JSON using our safe parser
-    let alternativesJson = safeJsonParse(alternativesInfo);
-    console.log('Successfully parsed alternatives JSON:', alternativesJson);
-    
-    // Add unique IDs to each product for referencing
-    alternativesJson.original.id = "original";
-    alternativesJson.alternatives.forEach((alt, index) => {
-      alt.id = `alternative-${index + 1}`;
-    });
-    
-    // Make sure all percentage values are in range 0-100
-    const normalizePercentages = (comparison) => {
-      Object.keys(comparison).forEach(key => {
-        if (typeof comparison[key].original === 'number' && comparison[key].original < 1) {
-          comparison[key].original = Math.round(comparison[key].original * 100);
-        }
-        if (typeof comparison[key].alternative === 'number' && comparison[key].alternative < 1) {
-          comparison[key].alternative = Math.round(comparison[key].alternative * 100);
-        }
-      });
-      return comparison;
-    };
-    
-    if (alternativesJson.comparison) {
-      alternativesJson.comparison = normalizePercentages(alternativesJson.comparison);
-    }
-
-    // Return both product info and alternatives
-    return new Response(JSON.stringify({ 
-      result: productInfo,
-      alternatives: alternativesJson
-    }), {
+    return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

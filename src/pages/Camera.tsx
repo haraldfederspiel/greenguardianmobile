@@ -1,8 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import Logo from '../components/Logo';
+import { supabase } from '@/integrations/supabase/client';
 
 const CameraPage: React.FC = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -54,21 +54,15 @@ const CameraPage: React.FC = () => {
     
     try {
       // Call the Supabase Edge Function to analyze the image with Groq API
-      const response = await fetch('/api/analyze-product', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          image: capturedImage 
-        }),
+      const { data, error } = await supabase.functions.invoke('analyze-product', {
+        body: { image: capturedImage },
       });
       
-      if (!response.ok) {
+      if (error) {
+        console.error('Supabase function error:', error);
         throw new Error('Failed to analyze image');
       }
       
-      const data = await response.json();
       setProductInfo(data.result);
       
       toast({

@@ -5,7 +5,8 @@ import { ArrowLeft, Check, Droplet, Leaf, Recycle, Zap } from 'lucide-react';
 import SustainabilityScore from '../components/SustainabilityScore';
 import { Product } from '../components/ProductCard';
 import { useToast } from '@/components/ui/use-toast';
-import { LucideIcon } from 'lucide-react';
+import SustainableAlternative from '../components/SustainableAlternative';
+import ComparisonMetric from '../components/ComparisonMetric';
 
 // Sample data with updated image URLs
 const originalProduct: Product = {
@@ -39,10 +40,10 @@ const alternativeProducts: Product[] = [
   }
 ];
 
-interface ComparisonMetric {
+interface ComparisonMetricType {
   name: string;
-  icon: LucideIcon;
-  original: number; // Percentage (0-100)
+  icon: React.ComponentType;
+  original: number;
   alternative: number;
   label: string;
 }
@@ -64,7 +65,7 @@ const ProductComparison: React.FC = () => {
   }, [alternatives, selectedAlternative]);
   
   // Comparison metrics
-  const comparisonMetrics: ComparisonMetric[] = [
+  const comparisonMetrics: ComparisonMetricType[] = [
     {
       name: 'Carbon Footprint',
       icon: Leaf,
@@ -179,19 +180,17 @@ const ProductComparison: React.FC = () => {
           <h3 className="text-sm font-medium mb-3">Alternative Options</h3>
           <div className="flex space-x-3 overflow-x-auto pb-2">
             {alternatives.map(alt => (
-              <button
+              <SustainableAlternative
                 key={alt.id}
+                id={alt.id}
+                name={alt.name}
+                brand={alt.brand}
+                price={alt.price}
+                image={alt.image}
+                score={alt.sustainabilityScore}
+                isSelected={selectedAlternative?.id === alt.id}
                 onClick={() => setSelectedAlternative(alt)}
-                className={`flex-shrink-0 rounded-lg overflow-hidden w-16 h-16 ${
-                  selectedAlternative?.id === alt.id ? 'ring-2 ring-green-500' : ''
-                }`}
-              >
-                <img 
-                  src={alt.image} 
-                  alt={alt.name}
-                  className="w-full h-full object-cover"
-                />
-              </button>
+              />
             ))}
           </div>
         </div>
@@ -202,42 +201,14 @@ const ProductComparison: React.FC = () => {
         <h3 className="text-sm font-medium mb-3">Sustainability Comparison</h3>
         <div className="space-y-4">
           {comparisonMetrics.map((metric, index) => (
-            <div key={index} className="glass-card rounded-xl p-4">
-              <div className="flex items-center mb-2">
-                <div className="bg-green-100 rounded-full p-1.5 mr-2">
-                  <metric.icon size={16} className="text-green-600" />
-                </div>
-                <h4 className="text-sm font-medium">{metric.name}</h4>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-neutral-400 rounded-full"
-                      style={{ width: `${metric.original}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-xs text-neutral-500">Original</span>
-                    <span className="text-xs font-medium">{metric.original}%</span>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 rounded-full"
-                      style={{ width: `${metric.alternative}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-xs text-neutral-500">Alternative</span>
-                    <span className="text-xs font-medium">{metric.alternative}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ComparisonMetric
+              key={index}
+              name={metric.name}
+              icon={metric.icon}
+              originalValue={metric.original}
+              alternativeValue={metric.alternative}
+              label={metric.label}
+            />
           ))}
         </div>
       </div>

@@ -1,7 +1,7 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X, Copy, Share2, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -22,6 +22,7 @@ const CameraPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -140,6 +141,11 @@ const CameraPage: React.FC = () => {
     }
   };
 
+  const viewAlternatives = () => {
+    navigate('/compare/1');
+    setShowResultModal(false);
+  };
+
   return (
     <div className="animate-fade-in flex flex-col h-full">
       <header className="mb-6 flex flex-col items-center">
@@ -239,7 +245,6 @@ const CameraPage: React.FC = () => {
         className="hidden" 
       />
 
-      {/* Product Analysis Result Modal */}
       <Dialog open={showResultModal} onOpenChange={setShowResultModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -260,36 +265,50 @@ const CameraPage: React.FC = () => {
             </div>
           )}
           
-          <DialogFooter className="sm:justify-start flex flex-row gap-2 mt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center" 
-              onClick={copyToClipboard}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Copy
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center" 
-              onClick={shareProductInfo}
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-            <Button 
-              type="button" 
-              variant="default" 
-              size="sm" 
-              className="ml-auto" 
-              onClick={() => setShowResultModal(false)}
-            >
-              Close
-            </Button>
+          <DialogFooter className="sm:justify-start flex flex-col gap-4 mt-4">
+            <div className="flex flex-row gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center" 
+                onClick={copyToClipboard}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center" 
+                onClick={shareProductInfo}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+            </div>
+            
+            <div className="flex flex-row w-full gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="flex-1" 
+                onClick={() => setShowResultModal(false)}
+              >
+                Close
+              </Button>
+              <Button 
+                type="button" 
+                variant="default" 
+                size="sm" 
+                className="flex-1 bg-green-500 hover:bg-green-600" 
+                onClick={viewAlternatives}
+              >
+                View Sustainable Alternatives
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

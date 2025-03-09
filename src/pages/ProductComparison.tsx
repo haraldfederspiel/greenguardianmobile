@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Droplet, Leaf, Recycle, Zap } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 import SustainabilityScore from '../components/SustainabilityScore';
 import { Product } from '../components/ProductCard';
 import { useToast } from '@/components/ui/use-toast';
@@ -42,7 +43,7 @@ const alternativeProducts: Product[] = [
 
 interface ComparisonMetricType {
   name: string;
-  icon: React.ComponentType;
+  icon: LucideIcon;
   original: number;
   alternative: number;
   label: string;
